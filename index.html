@@ -710,7 +710,7 @@ const supabaseUrl = "https://vjcbhsotfyrobkvbjxjy.supabase.co";
 const supabaseKey = "sb_publishable_7imKDCnQKrkgcgIXgHtUig_XZy3IMni";
 const TABLE='agency_incidents';
 const DISTRICTS=['เมืองมุกดาหาร','หว้านใหญ่','ดอนตาล','นิคมคำสร้อย','ดงหลวง','คำชะอี','หนองสูง'];
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const const sb=supabase.createClient(supabaseUrl, supabaseKey);
 let map, districtLayer, eventLayer=L.layerGroup(), rows=[];
 let baseLayers={}; let currentBase=null;
 
