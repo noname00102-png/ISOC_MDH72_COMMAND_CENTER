@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ISOC MDH72 COMMAND CENTER V2 REPORT ADMIN</title>
+<style>
+body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0}
+.box{margin:20px;padding:20px;border:1px solid #285978;border-radius:12px;background:#092235}
+button{padding:10px 15px;border-radius:8px;border:0;cursor:pointer;margin:5px}
+.admin{display:none}
+</style>
+</head>
+<body>
+
+<div class="box">
+<h2>📄 รายงานสถานการณ์จังหวัดมุกดาหาร</h2>
+<p id="summary">กำลังเชื่อมต่อ Supabase...</p>
+<table width="100%" border="1">
+<thead><tr><th>เหตุการณ์</th><th>ระดับ</th><th>สถานที่</th></tr></thead>
+<tbody id="report"></tbody>
+</table>
+</div>
+
+<div class="box">
+<button onclick="login()">🔐 เจ้าหน้าที่เข้าสู่ระบบ</button>
+<div class="admin" id="adminMenu">
+<button>➕ เพิ่มเหตุการณ์</button>
+<button>✏️ แก้ไข</button>
+<button>🗑️ ลบ</button>
+<button onclick="window.print()">🖨️ พิมพ์รายงาน</button>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://vjcbhsotfyrobkvbjxjy.supabase.co";
+const SUPABASE_KEY="sb_publishable_7imKDCnQKrkgcgIXgHtUig_XZy3IMni";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+async function loadReport(){
+ const {data,error}=await sb.from("agency_incidents").select("*").order("created_at",{ascending:false});
+ if(error){document.getElementById("summary").innerText="โหลดข้อมูลไม่สำเร็จ";return;}
+ document.getElementById("summary").innerText="เหตุการณ์ทั้งหมด "+data.length+" รายการ";
+ document.getElementById("report").innerHTML=data.map(x=>
+ `<tr><td>${x.title||""}</td><td>${x.level||""}</td><td>${x.location||""}</td></tr>`
+ ).join("");
+}
+function login(){
+ let pass=prompt("รหัสเจ้าหน้าที่");
+ if(pass==="MDH72ADMIN"){
+   document.getElementById("adminMenu").style.display="block";
+   alert("เข้าสู่ระบบสำเร็จ");
+ }else alert("รหัสไม่ถูกต้อง");
+}
+loadReport();
+</script>
+
+</body>
+</html>
