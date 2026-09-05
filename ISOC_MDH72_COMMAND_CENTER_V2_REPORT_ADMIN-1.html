@@ -5,56 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ISOC MDH72 COMMAND CENTER V2 REPORT ADMIN</title>
 <style>
-body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0}
-.box{margin:20px;padding:20px;border:1px solid #285978;border-radius:12px;background:#092235}
-button{padding:10px 15px;border-radius:8px;border:0;cursor:pointer;margin:5px}
-.admin{display:none}
+body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0}.box{margin:20px;padding:20px;border:1px solid #285978;border-radius:12px;background:#092235}button{padding:10px 15px;border-radius:8px;border:0;cursor:pointer;margin:5px}.admin{display:none}table{border-collapse:collapse}th,td{padding:8px}
 </style>
 </head>
 <body>
-
-<div class="box">
-<h2>📄 รายงานสถานการณ์จังหวัดมุกดาหาร</h2>
-<p id="summary">กำลังเชื่อมต่อ Supabase...</p>
-<table width="100%" border="1">
-<thead><tr><th>เหตุการณ์</th><th>ระดับ</th><th>สถานที่</th></tr></thead>
-<tbody id="report"></tbody>
-</table>
-</div>
-
-<div class="box">
-<button onclick="login()">🔐 เจ้าหน้าที่เข้าสู่ระบบ</button>
-<div class="admin" id="adminMenu">
-<button>➕ เพิ่มเหตุการณ์</button>
-<button>✏️ แก้ไข</button>
-<button>🗑️ ลบ</button>
-<button onclick="window.print()">🖨️ พิมพ์รายงาน</button>
-</div>
-</div>
-
+<div class="box"><h2>📄 รายงานสถานการณ์จังหวัดมุกดาหาร</h2><p id="summary">กำลังเชื่อมต่อ Supabase...</p><table width="100%" border="1"><thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>อำเภอ</th><th>ตำบล</th><th>รายละเอียด</th></tr></thead><tbody id="report"></tbody></table></div>
+<div class="box"><button onclick="login()">🔐 เจ้าหน้าที่เข้าสู่ระบบ</button><div class="admin" id="adminMenu"><button onclick="addThreat()">➕ เพิ่มเหตุการณ์</button><button onclick="loadReport()">🔄 รีเฟรช</button><button onclick="window.print()">🖨️ พิมพ์รายงาน</button></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL="https://vjcbhsotfyrobkvbjxjy.supabase.co";
-const SUPABASE_KEY="sb_publishable_7imKDCnQKrkgcgIXgHtUig_XZy3IMni";
+const SUPABASE_URL="https://riuebseoczwwifxezcwj.supabase.co";
+const SUPABASE_KEY="sb_publishable_G6QyDB6Ux0Rd9yzbuQCCoQ_mkyu7wuO";
+const TABLE="threats";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
-async function loadReport(){
- const {data,error}=await sb.from("agency_incidents").select("*").order("created_at",{ascending:false});
- if(error){document.getElementById("summary").innerText="โหลดข้อมูลไม่สำเร็จ";return;}
- document.getElementById("summary").innerText="เหตุการณ์ทั้งหมด "+data.length+" รายการ";
- document.getElementById("report").innerHTML=data.map(x=>
- `<tr><td>${x.title||""}</td><td>${x.level||""}</td><td>${x.location||""}</td></tr>`
- ).join("");
-}
-function login(){
- let pass=prompt("รหัสเจ้าหน้าที่");
- if(pass==="MDH72ADMIN"){
-   document.getElementById("adminMenu").style.display="block";
-   alert("เข้าสู่ระบบสำเร็จ");
- }else alert("รหัสไม่ถูกต้อง");
-}
-loadReport();
-</script>
-
-</body>
-</html>
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+async function loadReport(){const {data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});if(error){document.getElementById('summary').innerText='โหลดข้อมูลไม่สำเร็จ: '+error.message;return}document.getElementById('summary').innerText='เหตุการณ์ทั้งหมด '+data.length+' รายการ';document.getElementById('report').innerHTML=data.map(x=>`<tr><td>${esc(x.title)}</td><td>${esc(x.threat_type)}</td><td>${esc(x.threat_level)}</td><td>${esc(x.district)}</td><td>${esc(x.subdistrict)}</td><td>${esc(x.description)}</td></tr>`).join('')}
+async function login(){const email=prompt('อีเมลเจ้าหน้าที่');const password=prompt('รหัสผ่าน');if(!email||!password)return;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert('เข้าสู่ระบบไม่สำเร็จ: '+error.message);return}document.getElementById('adminMenu').style.display='block';alert('เข้าสู่ระบบสำเร็จ')}
+async function addThreat(){const {data:{user}}=await sb.auth.getUser();if(!user){alert('กรุณาเข้าสู่ระบบก่อน');return}const title=prompt('ชื่อเหตุการณ์');if(!title)return;const threat_type=prompt('ประเภทภัย','อื่นๆ')||'อื่นๆ';const threat_level=prompt('ระดับภัย','ปกติ')||'ปกติ';const district=prompt('อำเภอ')||null;const subdistrict=prompt('ตำบล')||null;const description=prompt('รายละเอียด')||null;const {error}=await sb.from(TABLE).insert({title,threat_type,threat_level,district,subdistrict,description,created_by:user.id});if(error)alert('บันทึกไม่สำเร็จ: '+error.message);else{alert('บันทึกสำเร็จ');loadReport()}}
+sb.channel('threats-live').on('postgres_changes',{event:'*',schema:'public',table:TABLE},loadReport).subscribe();loadReport();
+</script></body></html>
