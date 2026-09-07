@@ -1,1 +1,313 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ISOC MDH72 COMMAND CENTER</title><style>body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0}.box{margin:20px;padding:20px;border:1px solid #285978;border-radius:12px;background:#092235}button,input,select,textarea{padding:9px;margin:4px;border-radius:7px;border:1px solid #47718b}button{cursor:pointer}.admin{display:none}.form{display:none}.danger{background:#7d2222;color:#fff}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #376078}td{vertical-align:top}@media(max-width:700px){.row{grid-template-columns:1fr}table{font-size:12px}}</style></head><body><div class="box"><h2>📄 รายงานสถานการณ์จังหวัดมุกดาหาร</h2><p id="summary">กำลังเชื่อมต่อ Supabase...</p><table><thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>อำเภอ/ตำบล</th><th>รายละเอียด</th><th>จัดการ</th></tr></thead><tbody id="report"></tbody></table></div><div class="box"><button onclick="login()">🔐 เข้าสู่ระบบเจ้าหน้าที่</button><div id="adminMenu" class="admin"><button onclick="showForm()">➕ เพิ่มเหตุการณ์</button><button onclick="loadReport()">🔄 รีเฟรช</button><button onclick="logout()">ออกจากระบบ</button><button onclick="window.print()">🖨️ พิมพ์</button></div><div id="form" class="form"><h3 id="formTitle">เพิ่มเหตุการณ์</h3><input id="title" placeholder="ชื่อเหตุการณ์"><input id="threat_type" placeholder="ประเภทภัย"><select id="threat_level"><option>ปกติ</option><option>เฝ้าระวัง</option><option>เร่งด่วน</option><option>วิกฤต</option></select><div class="row"><input id="district" placeholder="อำเภอ"><input id="subdistrict" placeholder="ตำบล"><input id="visibility" placeholder="visibility" value="public"></div><textarea id="description" placeholder="รายละเอียด" rows="4" style="width:95%"></textarea><input id="lat" type="number" step="any" placeholder="ละติจูด"><input id="lng" type="number" step="any" placeholder="ลองจิจูด"><button onclick="saveThreat()">💾 บันทึก</button><button onclick="hideForm()">ยกเลิก</button><input type="hidden" id="editId"></div></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>const SUPABASE_URL='https://riuebseoczwwifxezcwj.supabase.co',SUPABASE_KEY='sb_publishable_G6QyDB6Ux0Rd9yzbuQCCoQ_mkyu7wuO',TABLE='threats',sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let rows=[];const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));async function loadReport(){const{data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});if(error){$('summary').textContent='โหลดข้อมูลไม่สำเร็จ: '+error.message;return}rows=data||[];$('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ';$('report').innerHTML=rows.map(x=>`<tr><td>${esc(x.title)}</td><td>${esc(x.threat_type)}</td><td>${esc(x.threat_level)}</td><td>${esc(x.district)} / ${esc(x.subdistrict)}</td><td>${esc(x.description)}</td><td>${$('adminMenu').style.display==='block'?`<button onclick="editThreat('${x.id}')">✏️ แก้ไข</button><button class="danger" onclick="deleteThreat('${x.id}')">🗑️ ลบ</button>`:'-'}</td></tr>`).join('')}async function login(){const email=prompt('อีเมลเจ้าหน้าที่');const password=prompt('รหัสผ่าน');if(!email||!password)return;const{error}=await sb.auth.signInWithPassword({email,password});if(error)return alert('เข้าสู่ระบบไม่สำเร็จ: '+error.message);const{data:{user}}=await sb.auth.getUser();const{data:profile}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();if(profile&&!['admin','administrator','เจ้าหน้าที่'].includes(String(profile.role).toLowerCase())){await sb.auth.signOut();return alert('บัญชีนี้ไม่มีสิทธิ์จัดการข้อมูล')}$('adminMenu').style.display='block';loadReport()}async function logout(){await sb.auth.signOut();$('adminMenu').style.display='none';hideForm();loadReport()}function showForm(x={}){$('form').style.display='block';$('formTitle').textContent=x.id?'แก้ไขเหตุการณ์':'เพิ่มเหตุการณ์';$('editId').value=x.id||'';['title','threat_type','threat_level','district','subdistrict','visibility','description'].forEach(k=>$(k).value=x[k]??(k==='visibility'?'public':''));$('lat').value=x.latitude??'';$('lng').value=x.longitude??''}function hideForm(){$('form').style.display='none'}function editThreat(id){const x=rows.find(r=>r.id===id);if(x)showForm(x)}async function saveThreat(){const{data:{user}}=await sb.auth.getUser();if(!user)return alert('กรุณาเข้าสู่ระบบ');const id=$('editId').value;const payload={title:$('title').value.trim(),threat_type:$('threat_type').value.trim(),threat_level:$('threat_level').value,description:$('description').value.trim()||null,district:$('district').value.trim()||null,subdistrict:$('subdistrict').value.trim()||null,visibility:$('visibility').value||'public',latitude:$('lat').value?Number($('lat').value):null,longitude:$('lng').value?Number($('lng').value):null,updated_at:new Date().toISOString()};if(!payload.title||!payload.threat_type)return alert('กรุณากรอกชื่อเหตุการณ์และประเภทภัย');let q=id?sb.from(TABLE).update(payload).eq('id',id):sb.from(TABLE).insert({...payload,created_by:user.id,created_at:new Date().toISOString(),status:'active'});const{error}=await q;if(error)return alert('บันทึกไม่สำเร็จ: '+error.message);hideForm();loadReport()}async function deleteThreat(id){if(!confirm('ยืนยันลบเหตุการณ์นี้?'))return;const{error}=await sb.from(TABLE).delete().eq('id',id);if(error)return alert('ลบไม่สำเร็จ: '+error.message);loadReport()}sb.auth.onAuthStateChange((event,session)=>{if(!session)$('adminMenu').style.display='none'});sb.channel('threats-live').on('postgres_changes',{event:'*',schema:'public',table:TABLE},loadReport).subscribe();loadReport();</script></body></html>
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ISOC MDH72 COMMAND CENTER</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0;padding:12px}
+.box{max-width:1200px;margin:12px auto;padding:18px;border:1px solid #285978;border-radius:12px;background:#092235}
+h2,h3{margin-top:0}
+button,input,select,textarea{font:inherit;padding:10px;margin:4px;border-radius:7px;border:1px solid #47718b;background:#061827;color:#fff}
+button{cursor:pointer;background:#0b6686}
+button:disabled{opacity:.55;cursor:not-allowed}
+.admin,.form{display:none}
+.danger{background:#7d2222}
+.success{color:#7ff0a8}
+.error{color:#ff9a9a}
+.muted{color:#9eb4c2}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.form-grid>*{width:calc(100% - 8px)}
+textarea{width:calc(100% - 8px);resize:vertical}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{padding:8px;border:1px solid #376078;text-align:left;vertical-align:top}
+th{background:#0c3147}
+.actions{white-space:nowrap}
+.status{min-height:24px}
+@media(max-width:700px){body{padding:4px}.box{margin:7px auto;padding:12px}.row,.form-grid{grid-template-columns:1fr}table{font-size:12px}button,input,select,textarea{width:calc(100% - 8px)}}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>📄 รายงานสถานการณ์จังหวัดมุกดาหาร</h2>
+  <p id="summary" class="status">กำลังเชื่อมต่อ Supabase...</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>อำเภอ/ตำบล</th><th>รายละเอียด</th><th>จัดการ</th></tr></thead>
+      <tbody id="report"><tr><td colspan="6" class="muted">กำลังโหลดข้อมูล...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="box">
+  <button id="loginButton" type="button">🔐 เข้าสู่ระบบเจ้าหน้าที่</button>
+  <div id="adminMenu" class="admin">
+    <span id="userStatus" class="success"></span>
+    <button id="addButton" type="button">➕ เพิ่มเหตุการณ์</button>
+    <button id="refreshButton" type="button">🔄 รีเฟรช</button>
+    <button id="logoutButton" type="button">ออกจากระบบ</button>
+    <button id="printButton" type="button">🖨️ พิมพ์</button>
+  </div>
+
+  <div id="form" class="form">
+    <h3 id="formTitle">เพิ่มเหตุการณ์</h3>
+    <div id="formStatus" class="status"></div>
+    <div class="form-grid">
+      <input id="title" placeholder="ชื่อเหตุการณ์" autocomplete="off">
+      <input id="threat_type" placeholder="ประเภทภัย" autocomplete="off">
+      <select id="threat_level">
+        <option value="ปกติ">ปกติ</option>
+        <option value="เฝ้าระวัง">เฝ้าระวัง</option>
+        <option value="เร่งด่วน">เร่งด่วน</option>
+        <option value="วิกฤต">วิกฤต</option>
+      </select>
+      <input id="district" placeholder="อำเภอ" autocomplete="off">
+      <input id="subdistrict" placeholder="ตำบล" autocomplete="off">
+      <input id="visibility" placeholder="visibility" value="public" autocomplete="off">
+      <input id="lat" type="number" step="any" placeholder="ละติจูด">
+      <input id="lng" type="number" step="any" placeholder="ลองจิจูด">
+    </div>
+    <textarea id="description" placeholder="รายละเอียด" rows="4"></textarea>
+    <input type="hidden" id="editId">
+    <button id="saveButton" type="button">💾 บันทึก</button>
+    <button id="cancelButton" type="button">ยกเลิก</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+
+const SUPABASE_URL='https://riuebseoczwwifxezcwj.supabase.co';
+const SUPABASE_KEY='sb_publishable_G6QyDB6Ux0Rd9yzbuQCCoQ_mkyu7wuO';
+const TABLE='threats';
+const ALLOWED_ROLES=new Set(['admin','administrator','officer','ผู้ดูแลระบบ','เจ้าหน้าที่','เจ้าหน้าที่ปฏิบัติการ']);
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+
+let rows=[];
+let currentUser=null;
+let currentRole=null;
+let realtimeChannel=null;
+let loadInProgress=false;
+
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const setStatus=(message,type='')=>{
+  const el=$('formStatus');
+  el.textContent=message||'';
+  el.className='status '+(type==='error'?'error':type==='success'?'success':'');
+};
+
+function setAdminVisible(visible){
+  $('adminMenu').style.display=visible?'block':'none';
+  $('form').style.display='none';
+  if(!visible){$('userStatus').textContent='';}
+}
+
+function setBusy(button,busy,label){
+  if(!button)return;
+  button.disabled=busy;
+  if(busy){button.dataset.originalText=button.textContent;button.textContent=label;}
+  else if(button.dataset.originalText){button.textContent=button.dataset.originalText;delete button.dataset.originalText;}
+}
+
+function roleCanManage(role){return ALLOWED_ROLES.has(String(role||'').trim().toLowerCase());}
+function roleCanDelete(role){return String(role||'').trim().toLowerCase()==='admin';}
+
+async function getCurrentProfile(user){
+  const {data,error}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
+  if(error)throw new Error('อ่านสิทธิ์ผู้ใช้ไม่สำเร็จ: '+error.message);
+  if(!data)throw new Error('ไม่พบ profile ของบัญชีนี้ในตาราง profiles');
+  const role=String(data.role??'').trim().toLowerCase();
+  if(!roleCanManage(role))throw new Error('บัญชีนี้ไม่มีสิทธิ์จัดการข้อมูล (role: '+(data.role||'ไม่ระบุ')+')');
+  return role;
+}
+
+async function loadReport(){
+  if(loadInProgress)return;
+  loadInProgress=true;
+  try{
+    const {data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});
+    if(error)throw new Error(error.message);
+    rows=Array.isArray(data)?data:[];
+    $('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ'+(currentUser?' | ผู้ใช้: '+esc(currentRole):'');
+    $('summary').className='status success';
+    if(rows.length===0){
+      $('report').innerHTML='<tr><td colspan="6" class="muted">ยังไม่มีข้อมูลเหตุการณ์</td></tr>';
+      return;
+    }
+    $('report').innerHTML=rows.map(x=>{
+      const actions=currentUser&&roleCanManage(currentRole)
+        ? '<button type="button" data-action="edit" data-id="'+esc(x.id)+'">✏️ แก้ไข</button>'+
+          (roleCanDelete(currentRole)?'<button type="button" class="danger" data-action="delete" data-id="'+esc(x.id)+'">🗑️ ลบ</button>':'')
+        : '-';
+      return '<tr><td>'+esc(x.title)+'</td><td>'+esc(x.threat_type)+'</td><td>'+esc(x.threat_level)+'</td><td>'+esc(x.district)+' / '+esc(x.subdistrict)+'</td><td>'+esc(x.description)+'</td><td class="actions">'+actions+'</td></tr>';
+    }).join('');
+  }catch(error){
+    $('summary').textContent='โหลดข้อมูลไม่สำเร็จ: '+(error?.message||String(error));
+    $('summary').className='status error';
+    $('report').innerHTML='<tr><td colspan="6" class="error">'+esc(error?.message||String(error))+'</td></tr>';
+  }finally{loadInProgress=false;}
+}
+
+async function establishSession(session){
+  if(!session?.user){
+    currentUser=null;currentRole=null;setAdminVisible(false);await loadReport();return;
+  }
+  try{
+    const role=await getCurrentProfile(session.user);
+    currentUser=session.user;currentRole=role;
+    setAdminVisible(true);
+    $('userStatus').textContent=' | role: '+role;
+    await loadReport();
+  }catch(error){
+    currentUser=null;currentRole=null;setAdminVisible(false);
+    await sb.auth.signOut();
+    $('summary').textContent=error.message;
+    $('summary').className='status error';
+    alert(error.message);
+  }
+}
+
+async function login(){
+  const email=prompt('อีเมลเจ้าหน้าที่');
+  const password=prompt('รหัสผ่าน');
+  if(!email||!password)return;
+  setBusy($('loginButton'),true,'กำลังเข้าสู่ระบบ...');
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:email.trim(),password});
+    if(error)throw new Error(error.message);
+    await establishSession(data.session);
+  }catch(error){alert('เข้าสู่ระบบไม่สำเร็จ: '+(error?.message||String(error)));}
+  finally{setBusy($('loginButton'),false);}
+}
+
+async function logout(){
+  try{await sb.auth.signOut();}
+  catch(error){alert('ออกจากระบบไม่สำเร็จ: '+error.message);return;}
+  currentUser=null;currentRole=null;setAdminVisible(false);await loadReport();
+}
+
+function clearForm(){
+  $('formTitle').textContent='เพิ่มเหตุการณ์';
+  $('editId').value='';
+  $('title').value='';$('threat_type').value='';$('threat_level').value='ปกติ';
+  $('district').value='';$('subdistrict').value='';$('visibility').value='public';
+  $('description').value='';$('lat').value='';$('lng').value='';setStatus('');
+}
+
+function showForm(row=null){
+  if(!currentUser||!roleCanManage(currentRole)){alert('กรุณาเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์');return;}
+  if(row){
+    $('formTitle').textContent='แก้ไขเหตุการณ์';$('editId').value=row.id||'';
+    $('title').value=row.title??'';$('threat_type').value=row.threat_type??'';$('threat_level').value=row.threat_level??'ปกติ';
+    $('district').value=row.district??'';$('subdistrict').value=row.subdistrict??'';$('visibility').value=row.visibility??'public';
+    $('description').value=row.description??'';$('lat').value=row.latitude??'';$('lng').value=row.longitude??'';
+  }else clearForm();
+  setStatus('');$('form').style.display='block';$('title').focus();
+}
+
+async function saveThreat(){
+  if(!currentUser||!roleCanManage(currentRole)){alert('เซสชันหมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่');return;}
+  const title=$('title').value.trim();
+  const threatType=$('threat_type').value.trim();
+  if(!title||!threatType){setStatus('กรุณากรอกชื่อเหตุการณ์และประเภทภัย','error');return;}
+  const latitude=$('lat').value.trim();
+  const longitude=$('lng').value.trim();
+  if(latitude!==''&&!Number.isFinite(Number(latitude))){setStatus('ละติจูดไม่ใช่ตัวเลขที่ถูกต้อง','error');return;}
+  if(longitude!==''&&!Number.isFinite(Number(longitude))){setStatus('ลองจิจูดไม่ใช่ตัวเลขที่ถูกต้อง','error');return;}
+
+  const payload={
+    title,
+    threat_type:threatType,
+    threat_level:$('threat_level').value,
+    description:$('description').value.trim()||null,
+    district:$('district').value.trim()||null,
+    subdistrict:$('subdistrict').value.trim()||null,
+    visibility:$('visibility').value.trim()||'public',
+    latitude:latitude===''?null:Number(latitude),
+    longitude:longitude===''?null:Number(longitude)
+  };
+  const id=$('editId').value.trim();
+  const button=$('saveButton');
+  setBusy(button,true,'กำลังบันทึก...');setStatus('กำลังบันทึก...');
+  try{
+    let result;
+    if(id){
+      result=await sb.from(TABLE).update({...payload,updated_at:new Date().toISOString()}).eq('id',id).select('id').single();
+    }else{
+      result=await sb.from(TABLE).insert({...payload,created_by:currentUser.id}).select('id').single();
+    }
+    if(result.error)throw new Error(result.error.message);
+    if(!result.data)throw new Error('Supabase ไม่ส่งข้อมูลยืนยันการบันทึกกลับมา');
+    clearForm();$('form').style.display='none';
+    await loadReport();
+    alert(id?'แก้ไขเหตุการณ์สำเร็จ':'บันทึกเหตุการณ์สำเร็จ');
+  }catch(error){
+    const message=error?.message||String(error);
+    setStatus('บันทึกไม่สำเร็จ: '+message,'error');
+    alert('บันทึกไม่สำเร็จ: '+message);
+  }finally{setBusy(button,false);}
+}
+
+async function deleteThreat(id){
+  if(!currentUser||String(currentRole).trim().toLowerCase()!=='admin'){alert('เฉพาะ admin เท่านั้นที่ลบเหตุการณ์ได้');return;}
+  const row=rows.find(r=>String(r.id)===String(id));
+  if(!row){alert('ไม่พบเหตุการณ์ที่ต้องการลบ');return;}
+  if(!confirm('ยืนยันลบเหตุการณ์นี้?\n\n'+(row.title||'')))return;
+  try{
+    const {error}=await sb.from(TABLE).delete().eq('id',id).select('id').single();
+    if(error)throw new Error(error.message);
+    await loadReport();
+    alert('ลบเหตุการณ์สำเร็จ');
+  }catch(error){alert('ลบไม่สำเร็จ: '+(error?.message||String(error)));}
+}
+
+$('loginButton').addEventListener('click',login);
+$('addButton').addEventListener('click',()=>showForm());
+$('refreshButton').addEventListener('click',loadReport);
+$('logoutButton').addEventListener('click',logout);
+$('printButton').addEventListener('click',()=>window.print());
+$('cancelButton').addEventListener('click',()=>{$('form').style.display='none';clearForm();});
+$('saveButton').addEventListener('click',saveThreat);
+$('report').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-action]');
+  if(!button)return;
+  const id=button.dataset.id;
+  if(button.dataset.action==='edit'){
+    const row=rows.find(r=>String(r.id)===String(id));
+    if(row)showForm(row);
+  }else if(button.dataset.action==='delete')deleteThreat(id);
+});
+
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_OUT'){currentUser=null;currentRole=null;setAdminVisible(false);loadReport();}
+});
+
+async function init(){
+  try{
+    const {data,error}=await sb.auth.getSession();
+    if(error)throw error;
+    await establishSession(data.session);
+  }catch(error){
+    $('summary').textContent='เริ่มต้นระบบไม่สำเร็จ: '+(error?.message||String(error));
+    $('summary').className='status error';
+    setAdminVisible(false);
+  }
+  realtimeChannel=sb.channel('threats-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:TABLE},()=>loadReport())
+    .subscribe();
+}
+
+window.addEventListener('beforeunload',()=>{
+  if(realtimeChannel)sb.removeChannel(realtimeChannel);
+});
+
+init();
+</script>
+</body>
+</html>
