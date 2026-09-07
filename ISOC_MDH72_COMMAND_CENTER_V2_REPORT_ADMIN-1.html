@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ISOC MDH72 COMMAND CENTER</title>
 <style>
 :root{color-scheme:dark}
@@ -22,7 +22,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .form-grid>*{width:calc(100% - 8px)}
 textarea{width:calc(100% - 8px);resize:vertical}
 .table-wrap{overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:760px}
+table{width:100%;border-collapse:collapse;min-width:900px}
 th,td{padding:8px;border:1px solid #376078;text-align:left;vertical-align:top}
 th{background:#0c3147}
 .actions{white-space:nowrap}
@@ -41,15 +41,15 @@ th{background:#0c3147}
   <p id="summary" class="status">กำลังเชื่อมต่อ Supabase...</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>อำเภอ/ตำบล</th><th>รายละเอียด</th><th>จัดการ</th></tr></thead>
-      <tbody id="report"><tr><td colspan="6" class="muted">กำลังโหลดข้อมูล...</td></tr></tbody>
+      <thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>อำเภอ/ตำบล</th><th>วันเวลาเหตุการณ์</th><th>รายละเอียด</th><th>จัดการ</th></tr></thead>
+      <tbody id="report"><tr><td colspan="7" class="muted">กำลังโหลดข้อมูล...</td></tr></tbody>
     </table>
   </div>
 </div>
 
 <div class="box">
   <button id="loginButton" type="button">🔐 เข้าสู่ระบบเจ้าหน้าที่</button>
-  <div id="loginForm" class="login-form">
+  <div id="loginForm" class="login-form" aria-hidden="true">
     <h3>เข้าสู่ระบบเจ้าหน้าที่</h3>
     <div id="loginStatus" class="status"></div>
     <label for="loginEmail">อีเมล</label>
@@ -81,6 +81,7 @@ th{background:#0c3147}
         <option value="เร่งด่วน">เร่งด่วน</option>
         <option value="วิกฤต">วิกฤต</option>
       </select>
+      <input id="event_datetime" type="datetime-local" aria-label="วันเวลาเหตุการณ์">
       <input id="district" placeholder="อำเภอ" autocomplete="off">
       <input id="subdistrict" placeholder="ตำบล" autocomplete="off">
       <input id="visibility" placeholder="visibility" value="public" autocomplete="off">
@@ -101,39 +102,44 @@ th{background:#0c3147}
 const SUPABASE_URL='https://riuebseoczwwifxezcwj.supabase.co';
 const SUPABASE_KEY='sb_publishable_G6QyDB6Ux0Rd9yzbuQCCoQ_mkyu7wuO';
 const TABLE='threats';
+
 const ROLE_LABELS={admin:'ผู้ดูแลระบบ',commander:'ผู้บังคับบัญชา',officer:'เจ้าหน้าที่',viewer:'ผู้ชม'};
+const ROLE_ALIASES={admin:'admin',administrator:'admin',commander:'commander',officer:'officer',viewer:'viewer','ผู้ดูแลระบบ':'admin','เจ้าหน้าที่':'officer','เจ้าหน้าที่ปฏิบัติการ':'officer'};
 const MANAGE_ROLES=new Set(['admin','officer']);
 const DELETE_ROLES=new Set(['admin']);
-const KNOWN_ROLES=new Set(['admin','commander','officer','viewer','administrator','ผู้ดูแลระบบ','เจ้าหน้าที่','เจ้าหน้าที่ปฏิบัติการ']);
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 
 let rows=[];
 let currentUser=null;
 let currentRole=null;
 let realtimeChannel=null;
 let loadInProgress=false;
+let authBusy=false;
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const normalizeRole=role=>String(role??'').trim().toLowerCase();
-const setStatus=(message,type='')=>{
+const canonicalRole=role=>ROLE_ALIASES[normalizeRole(role)]||null;
+const roleCanManage=role=>MANAGE_ROLES.has(canonicalRole(role));
+const roleCanDelete=role=>DELETE_ROLES.has(canonicalRole(role));
+const roleLabel=role=>ROLE_LABELS[canonicalRole(role)]||String(role||'ไม่ระบุ');
+
+function setStatus(message,type=''){
   const el=$('formStatus');
   el.textContent=message||'';
   el.className='status '+(type==='error'?'error':type==='success'?'success':'');
-};
-const setLoginStatus=(message,type='')=>{
+}
+function setLoginStatus(message,type=''){
   const el=$('loginStatus');
   el.textContent=message||'';
   el.className='status '+(type==='error'?'error':type==='success'?'success':'');
-};
-
-function roleCanManage(role){return MANAGE_ROLES.has(normalizeRole(role))||normalizeRole(role)==='administrator';}
-function roleCanDelete(role){return DELETE_ROLES.has(normalizeRole(role));}
-function roleLabel(role){const key=normalizeRole(role);return ROLE_LABELS[key]||String(role||'ไม่ระบุ');}
+}
 
 function setStaffVisible(visible){
   $('loginButton').style.display=visible?'none':'inline-block';
   $('loginForm').style.display='none';
+  $('loginForm').setAttribute('aria-hidden','true');
   $('adminMenu').style.display=visible?'block':'none';
   $('form').style.display='none';
   if(!visible){
@@ -146,22 +152,51 @@ function setStaffVisible(visible){
 function configureRoleUI(){
   const manageable=roleCanManage(currentRole);
   $('addButton').style.display=manageable?'inline-block':'none';
-  $('roleNote').textContent=manageable?'สิทธิ์: สร้างและแก้ไขเหตุการณ์'+(roleCanDelete(currentRole)?' และลบเหตุการณ์':''): 'สิทธิ์: ดูข้อมูลและรายงานอย่างเดียว';
+  $('roleNote').textContent=manageable?'สิทธิ์: สร้างและแก้ไขเหตุการณ์'+(roleCanDelete(currentRole)?' และลบเหตุการณ์':''):'สิทธิ์: ดูข้อมูลและรายงานอย่างเดียว';
 }
 
 function setBusy(button,busy,label){
   if(!button)return;
   button.disabled=busy;
-  if(busy){button.dataset.originalText=button.textContent;button.textContent=label;}
-  else if(button.dataset.originalText){button.textContent=button.dataset.originalText;delete button.dataset.originalText;}
+  if(busy){
+    if(!button.dataset.originalText)button.dataset.originalText=button.textContent;
+    button.textContent=label||button.dataset.originalText;
+  }else if(button.dataset.originalText){
+    button.textContent=button.dataset.originalText;
+    delete button.dataset.originalText;
+  }
+}
+
+function formatDateTime(value){
+  if(!value)return '-';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return esc(value);
+  return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',hour12:false,timeZone:'Asia/Bangkok'}).format(d);
+}
+
+function toDatetimeLocal(value){
+  if(!value)return '';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return '';
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d).reduce((o,p)=>(o[p.type]=p.value,o),{});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function localInputToISO(value){
+  if(!value)return null;
+  const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if(!match)return null;
+  const [,y,mo,d,h,mi]=match;
+  const date=new Date(`${y}-${mo}-${d}T${h}:${mi}:00+07:00`);
+  return Number.isNaN(date.getTime())?null:date.toISOString();
 }
 
 async function getCurrentProfile(user){
   const {data,error}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
   if(error)throw new Error('อ่านสิทธิ์ผู้ใช้ไม่สำเร็จ: '+error.message);
   if(!data)throw new Error('ไม่พบ profile ของบัญชีนี้ในตาราง profiles');
-  const role=normalizeRole(data.role);
-  if(!KNOWN_ROLES.has(role))throw new Error('ไม่รู้จัก role ของบัญชีนี้: '+(data.role||'ไม่ระบุ'));
+  const role=canonicalRole(data.role);
+  if(!role)throw new Error('ไม่รู้จัก role ของบัญชีนี้: '+(data.role||'ไม่ระบุ'));
   return role;
 }
 
@@ -172,10 +207,10 @@ async function loadReport(){
     const {data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});
     if(error)throw new Error(error.message);
     rows=Array.isArray(data)?data:[];
-    $('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ'+(currentUser?' | '+roleLabel(currentRole):'');
+    $('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ'+(currentUser?' | สิทธิ์ '+roleLabel(currentRole):'');
     $('summary').className='status success';
     if(rows.length===0){
-      $('report').innerHTML='<tr><td colspan="6" class="muted">ยังไม่มีข้อมูลเหตุการณ์</td></tr>';
+      $('report').innerHTML='<tr><td colspan="7" class="muted">ยังไม่มีข้อมูลเหตุการณ์</td></tr>';
       return;
     }
     $('report').innerHTML=rows.map(x=>{
@@ -183,12 +218,13 @@ async function loadReport(){
         ? '<button type="button" data-action="edit" data-id="'+esc(x.id)+'"'+(roleCanManage(currentRole)?'':' disabled')+'>✏️ แก้ไข</button>'+
           (roleCanDelete(currentRole)?'<button type="button" class="danger" data-action="delete" data-id="'+esc(x.id)+'">🗑️ ลบ</button>':'')
         : '-';
-      return '<tr><td>'+esc(x.title)+'</td><td>'+esc(x.threat_type)+'</td><td>'+esc(x.threat_level)+'</td><td>'+esc(x.district)+' / '+esc(x.subdistrict)+'</td><td>'+esc(x.description)+'</td><td class="actions">'+actions+'</td></tr>';
+      const eventTime=x.event_datetime||x.created_at;
+      return '<tr><td>'+esc(x.title)+'</td><td>'+esc(x.threat_type)+'</td><td>'+esc(x.threat_level)+'</td><td>'+esc(x.district)+' / '+esc(x.subdistrict)+'</td><td>'+formatDateTime(eventTime)+'</td><td>'+esc(x.description)+'</td><td class="actions">'+actions+'</td></tr>';
     }).join('');
   }catch(error){
     $('summary').textContent='โหลดข้อมูลไม่สำเร็จ: '+(error?.message||String(error));
     $('summary').className='status error';
-    $('report').innerHTML='<tr><td colspan="6" class="error">'+esc(error?.message||String(error))+'</td></tr>';
+    $('report').innerHTML='<tr><td colspan="7" class="error">'+esc(error?.message||String(error))+'</td></tr>';
   }finally{loadInProgress=false;}
 }
 
@@ -206,7 +242,7 @@ async function establishSession(session){
     await loadReport();
   }catch(error){
     currentUser=null;currentRole=null;setStaffVisible(false);
-    await sb.auth.signOut();
+    try{await sb.auth.signOut({scope:'local'});}catch(_){ }
     $('summary').textContent=error.message;
     $('summary').className='status error';
     setLoginStatus(error.message,'error');
@@ -215,59 +251,94 @@ async function establishSession(session){
 
 function showLoginForm(){
   $('loginForm').style.display='block';
-  $('loginEmail').focus();
+  $('loginForm').setAttribute('aria-hidden','false');
   setLoginStatus('');
+  $('loginEmail').focus();
 }
 function hideLoginForm(){
   $('loginForm').style.display='none';
+  $('loginForm').setAttribute('aria-hidden','true');
   setLoginStatus('');
 }
 
 async function login(){
+  if(authBusy)return;
   const email=$('loginEmail').value.trim();
   const password=$('loginPassword').value;
   if(!email||!password){setLoginStatus('กรุณากรอกอีเมลและรหัสผ่าน','error');return;}
+  authBusy=true;
   setBusy($('loginSubmit'),true,'กำลังเข้าสู่ระบบ...');
   setLoginStatus('กำลังตรวจสอบบัญชี...');
   try{
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error)throw new Error(error.message);
-    if(!data.session)throw new Error('เข้าสู่ระบบสำเร็จแต่ไม่พบ session');
+    if(!data?.session?.user)throw new Error('เข้าสู่ระบบสำเร็จแต่ไม่พบ session');
     await establishSession(data.session);
-    $('loginPassword').value='';
-    hideLoginForm();
+    if(currentUser){
+      $('loginPassword').value='';
+      hideLoginForm();
+    }
   }catch(error){
     setLoginStatus('เข้าสู่ระบบไม่สำเร็จ: '+(error?.message||String(error)),'error');
-  }finally{setBusy($('loginSubmit'),false);}
+  }finally{
+    authBusy=false;
+    setBusy($('loginSubmit'),false);
+  }
 }
 
 async function logout(){
+  if(authBusy)return;
+  authBusy=true;
   setBusy($('logoutButton'),true,'กำลังออกจากระบบ...');
   try{
-    const {error}=await sb.auth.signOut();
+    const {error}=await sb.auth.signOut({scope:'local'});
     if(error)throw error;
     currentUser=null;currentRole=null;setStaffVisible(false);await loadReport();
-  }catch(error){alert('ออกจากระบบไม่สำเร็จ: '+(error?.message||String(error)));}
-  finally{setBusy($('logoutButton'),false);}
+  }catch(error){
+    alert('ออกจากระบบไม่สำเร็จ: '+(error?.message||String(error)));
+  }finally{
+    authBusy=false;
+    setBusy($('logoutButton'),false);
+  }
 }
 
 function clearForm(){
   $('formTitle').textContent='เพิ่มเหตุการณ์';
   $('editId').value='';
-  $('title').value='';$('threat_type').value='';$('threat_level').value='ปกติ';
-  $('district').value='';$('subdistrict').value='';$('visibility').value='public';
-  $('description').value='';$('lat').value='';$('lng').value='';setStatus('');
+  $('title').value='';
+  $('threat_type').value='';
+  $('threat_level').value='ปกติ';
+  $('event_datetime').value='';
+  $('district').value='';
+  $('subdistrict').value='';
+  $('visibility').value='public';
+  $('description').value='';
+  $('lat').value='';
+  $('lng').value='';
+  setStatus('');
 }
 
 function showForm(row=null){
   if(!currentUser||!roleCanManage(currentRole)){alert('บัญชีนี้ไม่มีสิทธิ์แก้ไขข้อมูล');return;}
   if(row){
-    $('formTitle').textContent='แก้ไขเหตุการณ์';$('editId').value=row.id||'';
-    $('title').value=row.title??'';$('threat_type').value=row.threat_type??'';$('threat_level').value=row.threat_level??'ปกติ';
-    $('district').value=row.district??'';$('subdistrict').value=row.subdistrict??'';$('visibility').value=row.visibility??'public';
-    $('description').value=row.description??'';$('lat').value=row.latitude??'';$('lng').value=row.longitude??'';
-  }else clearForm();
-  setStatus('');$('form').style.display='block';$('title').focus();
+    $('formTitle').textContent='แก้ไขเหตุการณ์';
+    $('editId').value=row.id||'';
+    $('title').value=row.title??'';
+    $('threat_type').value=row.threat_type??'';
+    $('threat_level').value=row.threat_level??'ปกติ';
+    $('event_datetime').value=toDatetimeLocal(row.event_datetime||row.created_at);
+    $('district').value=row.district??'';
+    $('subdistrict').value=row.subdistrict??'';
+    $('visibility').value=row.visibility??'public';
+    $('description').value=row.description??'';
+    $('lat').value=row.latitude??'';
+    $('lng').value=row.longitude??'';
+  }else{
+    clearForm();
+  }
+  setStatus('');
+  $('form').style.display='block';
+  $('title').focus();
 }
 
 async function saveThreat(){
@@ -279,11 +350,15 @@ async function saveThreat(){
   const longitude=$('lng').value.trim();
   if(latitude!==''&&!Number.isFinite(Number(latitude))){setStatus('ละติจูดไม่ใช่ตัวเลขที่ถูกต้อง','error');return;}
   if(longitude!==''&&!Number.isFinite(Number(longitude))){setStatus('ลองจิจูดไม่ใช่ตัวเลขที่ถูกต้อง','error');return;}
+  const eventDatetimeInput=$('event_datetime').value;
+  const eventDatetime=localInputToISO(eventDatetimeInput);
+  if(eventDatetimeInput&&!eventDatetime){setStatus('วันเวลาเหตุการณ์ไม่ถูกต้อง','error');return;}
 
   const payload={
     title,
     threat_type:threatType,
     threat_level:$('threat_level').value,
+    event_datetime:eventDatetime,
     description:$('description').value.trim()||null,
     district:$('district').value.trim()||null,
     subdistrict:$('subdistrict').value.trim()||null,
@@ -293,24 +368,28 @@ async function saveThreat(){
   };
   const id=$('editId').value.trim();
   const button=$('saveButton');
-  setBusy(button,true,'กำลังบันทึก...');setStatus('กำลังบันทึก...');
+  setBusy(button,true,'กำลังบันทึก...');
+  setStatus('กำลังบันทึก...');
   try{
     let result;
     if(id){
-      result=await sb.from(TABLE).update(payload).eq('id',id).select('id').single();
+      result=await sb.from(TABLE).update(payload).eq('id',id).select('id,updated_at').single();
     }else{
-      result=await sb.from(TABLE).insert({...payload,created_by:currentUser.id}).select('id').single();
+      result=await sb.from(TABLE).insert({...payload,created_by:currentUser.id}).select('id,created_at,updated_at').single();
     }
     if(result.error)throw new Error(result.error.message);
     if(!result.data)throw new Error('Supabase ไม่ส่งข้อมูลยืนยันการบันทึกกลับมา');
-    clearForm();$('form').style.display='none';
+    clearForm();
+    $('form').style.display='none';
     await loadReport();
     alert(id?'แก้ไขเหตุการณ์สำเร็จ':'บันทึกเหตุการณ์สำเร็จ');
   }catch(error){
     const message=error?.message||String(error);
     setStatus('บันทึกไม่สำเร็จ: '+message,'error');
     alert('บันทึกไม่สำเร็จ: '+message);
-  }finally{setBusy(button,false);}
+  }finally{
+    setBusy(button,false);
+  }
 }
 
 async function deleteThreat(id){
@@ -324,7 +403,9 @@ async function deleteThreat(id){
     if(!data)throw new Error('ไม่พบข้อมูลที่ถูกลบหรือไม่มีสิทธิ์ลบ');
     await loadReport();
     alert('ลบเหตุการณ์สำเร็จ');
-  }catch(error){alert('ลบไม่สำเร็จ: '+(error?.message||String(error)));}
+  }catch(error){
+    alert('ลบไม่สำเร็จ: '+(error?.message||String(error)));
+  }
 }
 
 $('loginButton').addEventListener('click',showLoginForm);
@@ -344,16 +425,22 @@ $('report').addEventListener('click',event=>{
   if(button.dataset.action==='edit'){
     const row=rows.find(r=>String(r.id)===String(id));
     if(row)showForm(row);
-  }else if(button.dataset.action==='delete')deleteThreat(id);
+  }else if(button.dataset.action==='delete'){
+    deleteThreat(id);
+  }
 });
 
-sb.auth.onAuthStateChange((event,session)=>{
+sb.auth.onAuthStateChange((event)=>{
   if(event==='SIGNED_OUT'){
-    currentUser=null;currentRole=null;setStaffVisible(false);loadReport();
+    currentUser=null;
+    currentRole=null;
+    setStaffVisible(false);
+    loadReport();
   }
 });
 
 async function init(){
+  setStaffVisible(false);
   try{
     const {data,error}=await sb.auth.getSession();
     if(error)throw error;
@@ -363,6 +450,7 @@ async function init(){
     $('summary').className='status error';
     setStaffVisible(false);
   }
+
   realtimeChannel=sb.channel('threats-live')
     .on('postgres_changes',{event:'*',schema:'public',table:TABLE},()=>loadReport())
     .subscribe();
@@ -372,7 +460,6 @@ window.addEventListener('beforeunload',()=>{
   if(realtimeChannel)sb.removeChannel(realtimeChannel);
 });
 
-setStaffVisible(false);
 init();
 </script>
 </body>
