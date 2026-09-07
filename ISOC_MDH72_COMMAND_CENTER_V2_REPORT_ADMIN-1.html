@@ -13,12 +13,11 @@ h2,h3{margin-top:0}
 button,input,select,textarea{font:inherit;padding:10px;margin:4px;border-radius:7px;border:1px solid #47718b;background:#061827;color:#fff}
 button{cursor:pointer;background:#0b6686}
 button:disabled{opacity:.55;cursor:not-allowed}
-.admin,.form{display:none}
+.admin,.form,.login-form{display:none}
 .danger{background:#7d2222}
 .success{color:#7ff0a8}
 .error{color:#ff9a9a}
 .muted{color:#9eb4c2}
-.row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
 .form-grid>*{width:calc(100% - 8px)}
 textarea{width:calc(100% - 8px);resize:vertical}
@@ -28,7 +27,12 @@ th,td{padding:8px;border:1px solid #376078;text-align:left;vertical-align:top}
 th{background:#0c3147}
 .actions{white-space:nowrap}
 .status{min-height:24px}
-@media(max-width:700px){body{padding:4px}.box{margin:7px auto;padding:12px}.row,.form-grid{grid-template-columns:1fr}table{font-size:12px}button,input,select,textarea{width:calc(100% - 8px)}}
+.login-form{max-width:520px}
+.login-form label{display:block;margin:8px 4px 2px;color:#c6d7e0}
+.login-form input{width:calc(100% - 8px)}
+.role-note{margin:6px 4px;color:#9eb4c2}
+@media(max-width:700px){body{padding:4px}.box{margin:7px auto;padding:12px}.form-grid{grid-template-columns:1fr}table{font-size:12px}button,input,select,textarea{width:calc(100% - 8px)}}
+@media print{body{background:#fff;color:#000}.box{background:#fff;color:#000;border:0}.admin,.login-form,.form,.actions{display:none!important}table,th,td{border-color:#000}th{background:#eee;color:#000}}
 </style>
 </head>
 <body>
@@ -45,8 +49,20 @@ th{background:#0c3147}
 
 <div class="box">
   <button id="loginButton" type="button">🔐 เข้าสู่ระบบเจ้าหน้าที่</button>
+  <div id="loginForm" class="login-form">
+    <h3>เข้าสู่ระบบเจ้าหน้าที่</h3>
+    <div id="loginStatus" class="status"></div>
+    <label for="loginEmail">อีเมล</label>
+    <input id="loginEmail" type="email" autocomplete="username" inputmode="email" placeholder="อีเมลเจ้าหน้าที่">
+    <label for="loginPassword">รหัสผ่าน</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน">
+    <button id="loginSubmit" type="button">เข้าสู่ระบบ</button>
+    <button id="loginCancel" type="button">ยกเลิก</button>
+  </div>
+
   <div id="adminMenu" class="admin">
     <span id="userStatus" class="success"></span>
+    <div class="role-note" id="roleNote"></div>
     <button id="addButton" type="button">➕ เพิ่มเหตุการณ์</button>
     <button id="refreshButton" type="button">🔄 รีเฟรช</button>
     <button id="logoutButton" type="button">ออกจากระบบ</button>
@@ -85,7 +101,10 @@ th{background:#0c3147}
 const SUPABASE_URL='https://riuebseoczwwifxezcwj.supabase.co';
 const SUPABASE_KEY='sb_publishable_G6QyDB6Ux0Rd9yzbuQCCoQ_mkyu7wuO';
 const TABLE='threats';
-const ALLOWED_ROLES=new Set(['admin','administrator','officer','ผู้ดูแลระบบ','เจ้าหน้าที่','เจ้าหน้าที่ปฏิบัติการ']);
+const ROLE_LABELS={admin:'ผู้ดูแลระบบ',commander:'ผู้บังคับบัญชา',officer:'เจ้าหน้าที่',viewer:'ผู้ชม'};
+const MANAGE_ROLES=new Set(['admin','officer']);
+const DELETE_ROLES=new Set(['admin']);
+const KNOWN_ROLES=new Set(['admin','commander','officer','viewer','administrator','ผู้ดูแลระบบ','เจ้าหน้าที่','เจ้าหน้าที่ปฏิบัติการ']);
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 
 let rows=[];
@@ -96,16 +115,38 @@ let loadInProgress=false;
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const normalizeRole=role=>String(role??'').trim().toLowerCase();
 const setStatus=(message,type='')=>{
   const el=$('formStatus');
   el.textContent=message||'';
   el.className='status '+(type==='error'?'error':type==='success'?'success':'');
 };
+const setLoginStatus=(message,type='')=>{
+  const el=$('loginStatus');
+  el.textContent=message||'';
+  el.className='status '+(type==='error'?'error':type==='success'?'success':'');
+};
 
-function setAdminVisible(visible){
+function roleCanManage(role){return MANAGE_ROLES.has(normalizeRole(role))||normalizeRole(role)==='administrator';}
+function roleCanDelete(role){return DELETE_ROLES.has(normalizeRole(role));}
+function roleLabel(role){const key=normalizeRole(role);return ROLE_LABELS[key]||String(role||'ไม่ระบุ');}
+
+function setStaffVisible(visible){
+  $('loginButton').style.display=visible?'none':'inline-block';
+  $('loginForm').style.display='none';
   $('adminMenu').style.display=visible?'block':'none';
   $('form').style.display='none';
-  if(!visible){$('userStatus').textContent='';}
+  if(!visible){
+    $('userStatus').textContent='';
+    $('roleNote').textContent='';
+    $('addButton').style.display='none';
+  }
+}
+
+function configureRoleUI(){
+  const manageable=roleCanManage(currentRole);
+  $('addButton').style.display=manageable?'inline-block':'none';
+  $('roleNote').textContent=manageable?'สิทธิ์: สร้างและแก้ไขเหตุการณ์'+(roleCanDelete(currentRole)?' และลบเหตุการณ์':''): 'สิทธิ์: ดูข้อมูลและรายงานอย่างเดียว';
 }
 
 function setBusy(button,busy,label){
@@ -115,15 +156,12 @@ function setBusy(button,busy,label){
   else if(button.dataset.originalText){button.textContent=button.dataset.originalText;delete button.dataset.originalText;}
 }
 
-function roleCanManage(role){return ALLOWED_ROLES.has(String(role||'').trim().toLowerCase());}
-function roleCanDelete(role){return String(role||'').trim().toLowerCase()==='admin';}
-
 async function getCurrentProfile(user){
   const {data,error}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
   if(error)throw new Error('อ่านสิทธิ์ผู้ใช้ไม่สำเร็จ: '+error.message);
   if(!data)throw new Error('ไม่พบ profile ของบัญชีนี้ในตาราง profiles');
-  const role=String(data.role??'').trim().toLowerCase();
-  if(!roleCanManage(role))throw new Error('บัญชีนี้ไม่มีสิทธิ์จัดการข้อมูล (role: '+(data.role||'ไม่ระบุ')+')');
+  const role=normalizeRole(data.role);
+  if(!KNOWN_ROLES.has(role))throw new Error('ไม่รู้จัก role ของบัญชีนี้: '+(data.role||'ไม่ระบุ'));
   return role;
 }
 
@@ -134,15 +172,15 @@ async function loadReport(){
     const {data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});
     if(error)throw new Error(error.message);
     rows=Array.isArray(data)?data:[];
-    $('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ'+(currentUser?' | ผู้ใช้: '+esc(currentRole):'');
+    $('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ'+(currentUser?' | '+roleLabel(currentRole):'');
     $('summary').className='status success';
     if(rows.length===0){
       $('report').innerHTML='<tr><td colspan="6" class="muted">ยังไม่มีข้อมูลเหตุการณ์</td></tr>';
       return;
     }
     $('report').innerHTML=rows.map(x=>{
-      const actions=currentUser&&roleCanManage(currentRole)
-        ? '<button type="button" data-action="edit" data-id="'+esc(x.id)+'">✏️ แก้ไข</button>'+
+      const actions=currentUser
+        ? '<button type="button" data-action="edit" data-id="'+esc(x.id)+'"'+(roleCanManage(currentRole)?'':' disabled')+'>✏️ แก้ไข</button>'+
           (roleCanDelete(currentRole)?'<button type="button" class="danger" data-action="delete" data-id="'+esc(x.id)+'">🗑️ ลบ</button>':'')
         : '-';
       return '<tr><td>'+esc(x.title)+'</td><td>'+esc(x.threat_type)+'</td><td>'+esc(x.threat_level)+'</td><td>'+esc(x.district)+' / '+esc(x.subdistrict)+'</td><td>'+esc(x.description)+'</td><td class="actions">'+actions+'</td></tr>';
@@ -156,40 +194,61 @@ async function loadReport(){
 
 async function establishSession(session){
   if(!session?.user){
-    currentUser=null;currentRole=null;setAdminVisible(false);await loadReport();return;
+    currentUser=null;currentRole=null;setStaffVisible(false);await loadReport();return;
   }
   try{
     const role=await getCurrentProfile(session.user);
-    currentUser=session.user;currentRole=role;
-    setAdminVisible(true);
-    $('userStatus').textContent=' | role: '+role;
+    currentUser=session.user;
+    currentRole=role;
+    setStaffVisible(true);
+    $('userStatus').textContent='ผู้ใช้: '+(session.user.email||session.user.id);
+    configureRoleUI();
     await loadReport();
   }catch(error){
-    currentUser=null;currentRole=null;setAdminVisible(false);
+    currentUser=null;currentRole=null;setStaffVisible(false);
     await sb.auth.signOut();
     $('summary').textContent=error.message;
     $('summary').className='status error';
-    alert(error.message);
+    setLoginStatus(error.message,'error');
   }
 }
 
+function showLoginForm(){
+  $('loginForm').style.display='block';
+  $('loginEmail').focus();
+  setLoginStatus('');
+}
+function hideLoginForm(){
+  $('loginForm').style.display='none';
+  setLoginStatus('');
+}
+
 async function login(){
-  const email=prompt('อีเมลเจ้าหน้าที่');
-  const password=prompt('รหัสผ่าน');
-  if(!email||!password)return;
-  setBusy($('loginButton'),true,'กำลังเข้าสู่ระบบ...');
+  const email=$('loginEmail').value.trim();
+  const password=$('loginPassword').value;
+  if(!email||!password){setLoginStatus('กรุณากรอกอีเมลและรหัสผ่าน','error');return;}
+  setBusy($('loginSubmit'),true,'กำลังเข้าสู่ระบบ...');
+  setLoginStatus('กำลังตรวจสอบบัญชี...');
   try{
-    const {data,error}=await sb.auth.signInWithPassword({email:email.trim(),password});
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error)throw new Error(error.message);
+    if(!data.session)throw new Error('เข้าสู่ระบบสำเร็จแต่ไม่พบ session');
     await establishSession(data.session);
-  }catch(error){alert('เข้าสู่ระบบไม่สำเร็จ: '+(error?.message||String(error)));}
-  finally{setBusy($('loginButton'),false);}
+    $('loginPassword').value='';
+    hideLoginForm();
+  }catch(error){
+    setLoginStatus('เข้าสู่ระบบไม่สำเร็จ: '+(error?.message||String(error)),'error');
+  }finally{setBusy($('loginSubmit'),false);}
 }
 
 async function logout(){
-  try{await sb.auth.signOut();}
-  catch(error){alert('ออกจากระบบไม่สำเร็จ: '+error.message);return;}
-  currentUser=null;currentRole=null;setAdminVisible(false);await loadReport();
+  setBusy($('logoutButton'),true,'กำลังออกจากระบบ...');
+  try{
+    const {error}=await sb.auth.signOut();
+    if(error)throw error;
+    currentUser=null;currentRole=null;setStaffVisible(false);await loadReport();
+  }catch(error){alert('ออกจากระบบไม่สำเร็จ: '+(error?.message||String(error)));}
+  finally{setBusy($('logoutButton'),false);}
 }
 
 function clearForm(){
@@ -201,7 +260,7 @@ function clearForm(){
 }
 
 function showForm(row=null){
-  if(!currentUser||!roleCanManage(currentRole)){alert('กรุณาเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์');return;}
+  if(!currentUser||!roleCanManage(currentRole)){alert('บัญชีนี้ไม่มีสิทธิ์แก้ไขข้อมูล');return;}
   if(row){
     $('formTitle').textContent='แก้ไขเหตุการณ์';$('editId').value=row.id||'';
     $('title').value=row.title??'';$('threat_type').value=row.threat_type??'';$('threat_level').value=row.threat_level??'ปกติ';
@@ -238,7 +297,7 @@ async function saveThreat(){
   try{
     let result;
     if(id){
-      result=await sb.from(TABLE).update({...payload,updated_at:new Date().toISOString()}).eq('id',id).select('id').single();
+      result=await sb.from(TABLE).update(payload).eq('id',id).select('id').single();
     }else{
       result=await sb.from(TABLE).insert({...payload,created_by:currentUser.id}).select('id').single();
     }
@@ -255,19 +314,23 @@ async function saveThreat(){
 }
 
 async function deleteThreat(id){
-  if(!currentUser||String(currentRole).trim().toLowerCase()!=='admin'){alert('เฉพาะ admin เท่านั้นที่ลบเหตุการณ์ได้');return;}
+  if(!currentUser||!roleCanDelete(currentRole)){alert('เฉพาะ admin เท่านั้นที่ลบเหตุการณ์ได้');return;}
   const row=rows.find(r=>String(r.id)===String(id));
   if(!row){alert('ไม่พบเหตุการณ์ที่ต้องการลบ');return;}
   if(!confirm('ยืนยันลบเหตุการณ์นี้?\n\n'+(row.title||'')))return;
   try{
-    const {error}=await sb.from(TABLE).delete().eq('id',id).select('id').single();
+    const {data,error}=await sb.from(TABLE).delete().eq('id',id).select('id').single();
     if(error)throw new Error(error.message);
+    if(!data)throw new Error('ไม่พบข้อมูลที่ถูกลบหรือไม่มีสิทธิ์ลบ');
     await loadReport();
     alert('ลบเหตุการณ์สำเร็จ');
   }catch(error){alert('ลบไม่สำเร็จ: '+(error?.message||String(error)));}
 }
 
-$('loginButton').addEventListener('click',login);
+$('loginButton').addEventListener('click',showLoginForm);
+$('loginSubmit').addEventListener('click',login);
+$('loginCancel').addEventListener('click',hideLoginForm);
+$('loginPassword').addEventListener('keydown',event=>{if(event.key==='Enter')login();});
 $('addButton').addEventListener('click',()=>showForm());
 $('refreshButton').addEventListener('click',loadReport);
 $('logoutButton').addEventListener('click',logout);
@@ -276,7 +339,7 @@ $('cancelButton').addEventListener('click',()=>{$('form').style.display='none';c
 $('saveButton').addEventListener('click',saveThreat);
 $('report').addEventListener('click',event=>{
   const button=event.target.closest('button[data-action]');
-  if(!button)return;
+  if(!button||button.disabled)return;
   const id=button.dataset.id;
   if(button.dataset.action==='edit'){
     const row=rows.find(r=>String(r.id)===String(id));
@@ -285,7 +348,9 @@ $('report').addEventListener('click',event=>{
 });
 
 sb.auth.onAuthStateChange((event,session)=>{
-  if(event==='SIGNED_OUT'){currentUser=null;currentRole=null;setAdminVisible(false);loadReport();}
+  if(event==='SIGNED_OUT'){
+    currentUser=null;currentRole=null;setStaffVisible(false);loadReport();
+  }
 });
 
 async function init(){
@@ -296,7 +361,7 @@ async function init(){
   }catch(error){
     $('summary').textContent='เริ่มต้นระบบไม่สำเร็จ: '+(error?.message||String(error));
     $('summary').className='status error';
-    setAdminVisible(false);
+    setStaffVisible(false);
   }
   realtimeChannel=sb.channel('threats-live')
     .on('postgres_changes',{event:'*',schema:'public',table:TABLE},()=>loadReport())
@@ -307,6 +372,7 @@ window.addEventListener('beforeunload',()=>{
   if(realtimeChannel)sb.removeChannel(realtimeChannel);
 });
 
+setStaffVisible(false);
 init();
 </script>
 </body>
