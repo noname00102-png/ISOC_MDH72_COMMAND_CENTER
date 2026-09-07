@@ -5,461 +5,89 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ISOC MDH72 COMMAND CENTER</title>
 <style>
-:root{color-scheme:dark}
-*{box-sizing:border-box}
-body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0;padding:12px}
-.box{max-width:1200px;margin:12px auto;padding:18px;border:1px solid #285978;border-radius:12px;background:#092235}
-h2,h3{margin-top:0}
-button,input,select,textarea{font:inherit;padding:10px;margin:4px;border-radius:7px;border:1px solid #47718b;background:#061827;color:#fff}
-button{cursor:pointer;background:#0b6686}
-button:disabled{opacity:.55;cursor:not-allowed}
-.admin,.form,.login-form{display:none}
-.danger{background:#7d2222}
-.success{color:#7ff0a8}
-.error{color:#ff9a9a}
-.muted{color:#9eb4c2}
-.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
-.form-grid>*{width:calc(100% - 8px)}
-textarea{width:calc(100% - 8px);resize:vertical}
-.table-wrap{overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:900px}
-th,td{padding:8px;border:1px solid #376078;text-align:left;vertical-align:top}
-th{background:#0c3147}
-.actions{white-space:nowrap}
-.status{min-height:24px}
-.login-form{max-width:520px}
-.login-form label{display:block;margin:8px 4px 2px;color:#c6d7e0}
-.login-form input{width:calc(100% - 8px)}
-.role-note{margin:6px 4px;color:#9eb4c2}
-@media(max-width:700px){body{padding:4px}.box{margin:7px auto;padding:12px}.form-grid{grid-template-columns:1fr}table{font-size:12px}button,input,select,textarea{width:calc(100% - 8px)}}
-@media print{body{background:#fff;color:#000}.box{background:#fff;color:#000;border:0}.admin,.login-form,.form,.actions{display:none!important}table,th,td{border-color:#000}th{background:#eee;color:#000}}
+:root{color-scheme:dark}*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#061827;color:#fff;margin:0;padding:12px}.box{max-width:1400px;margin:12px auto;padding:18px;border:1px solid #285978;border-radius:12px;background:#092235}h1,h2,h3{margin-top:0}.muted{color:#9eb4c2}.success{color:#7ff0a8}.error{color:#ff9a9a}.status{min-height:24px;margin:8px 0}.toolbar,.stats,.form-grid{display:grid;gap:8px}.toolbar{grid-template-columns:2fr 1fr 1fr auto;align-items:center}.stats{grid-template-columns:repeat(4,1fr);margin:12px 0}.stat{padding:12px;border:1px solid #285978;border-radius:10px;background:#061827}.stat b{display:block;font-size:24px;margin-top:5px}button,input,select,textarea{font:inherit;padding:10px;margin:4px 0;border-radius:7px;border:1px solid #47718b;background:#061827;color:#fff}button{cursor:pointer;background:#0b6686}button:disabled{opacity:.55;cursor:not-allowed}.danger{background:#7d2222}.secondary{background:#27495b}.admin,.form,.login-form{display:none}.login-form{max-width:520px}.login-form label{display:block;margin:8px 0 2px;color:#c6d7e0}.login-form input{width:100%}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid>*{width:100%}textarea{width:100%;resize:vertical}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1100px}th,td{padding:8px;border:1px solid #376078;text-align:left;vertical-align:top}th{background:#0c3147}.actions{white-space:nowrap}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#27495b}.badge-critical{background:#7d2222}.thumb{width:70px;height:55px;object-fit:cover;border-radius:6px;border:1px solid #47718b}.image-list{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.image-item{border:1px solid #376078;border-radius:8px;padding:5px}.hint{font-size:13px;color:#9eb4c2}@media(max-width:800px){body{padding:4px}.box{margin:7px auto;padding:12px}.toolbar,.stats,.form-grid{grid-template-columns:1fr}.toolbar button{width:100%}table{font-size:12px}}@media print{body{background:#fff;color:#000}.box{background:#fff;color:#000;border:0}.admin,.login-form,.form,.actions,.toolbar,.stats{display:none!important}table,th,td{border-color:#000}th{background:#eee;color:#000}}
 </style>
 </head>
 <body>
 <div class="box">
-  <h2>📄 รายงานสถานการณ์จังหวัดมุกดาหาร</h2>
-  <p id="summary" class="status">กำลังเชื่อมต่อ Supabase...</p>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>อำเภอ/ตำบล</th><th>วันเวลาเหตุการณ์</th><th>รายละเอียด</th><th>จัดการ</th></tr></thead>
-      <tbody id="report"><tr><td colspan="7" class="muted">กำลังโหลดข้อมูล...</td></tr></tbody>
-    </table>
-  </div>
+<h1>📍 ISOC MDH72 COMMAND CENTER</h1>
+<p id="summary" class="status">กำลังเชื่อมต่อ Supabase...</p>
+<div class="stats">
+<div class="stat">เหตุการณ์ทั้งหมด<b id="statTotal">0</b></div>
+<div class="stat">กำลังดำเนินการ<b id="statActive">0</b></div>
+<div class="stat">ระดับสูงสุด<b id="statCritical">0</b></div>
+<div class="stat">วันนี้<b id="statToday">0</b></div>
+</div>
+<div class="toolbar">
+<input id="search" placeholder="ค้นหาเหตุการณ์ / ประเภท / อำเภอ / ตำบล" autocomplete="off">
+<select id="filterLevel"><option value="">ทุกระดับ</option><option value="ปกติ">ปกติ</option><option value="เฝ้าระวัง">เฝ้าระวัง</option><option value="เร่งด่วน">เร่งด่วน</option><option value="วิกฤต">วิกฤต</option><option value="🔴 ภัยคุกคามควบคุมไม่ได้">🔴 ภัยคุกคามควบคุมไม่ได้</option></select>
+<select id="filterStatus"><option value="">ทุกสถานะ</option><option value="active">active</option><option value="resolved">resolved</option><option value="closed">closed</option></select>
+<button id="refreshButton" type="button">🔄 รีเฟรช</button>
+</div>
+<div class="table-wrap">
+<table><thead><tr><th>เหตุการณ์</th><th>ประเภทภัย</th><th>ระดับ</th><th>สถานะ</th><th>อำเภอ/ตำบล</th><th>วันเวลาเหตุการณ์</th><th>แหล่งข่าว/หน่วยรายงาน</th><th>ภาพ</th><th>จัดการ</th></tr></thead>
+<tbody id="report"><tr><td colspan="9" class="muted">กำลังโหลดข้อมูล...</td></tr></tbody></table>
+</div>
 </div>
 
 <div class="box">
-  <button id="loginButton" type="button">🔐 เข้าสู่ระบบเจ้าหน้าที่</button>
-  <div id="loginForm" class="login-form" aria-hidden="true">
-    <h3>เข้าสู่ระบบเจ้าหน้าที่</h3>
-    <div id="loginStatus" class="status"></div>
-    <label for="loginEmail">อีเมล</label>
-    <input id="loginEmail" type="email" autocomplete="username" inputmode="email" placeholder="อีเมลเจ้าหน้าที่">
-    <label for="loginPassword">รหัสผ่าน</label>
-    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน">
-    <button id="loginSubmit" type="button">เข้าสู่ระบบ</button>
-    <button id="loginCancel" type="button">ยกเลิก</button>
-  </div>
-
-  <div id="adminMenu" class="admin">
-    <span id="userStatus" class="success"></span>
-    <div class="role-note" id="roleNote"></div>
-    <button id="addButton" type="button">➕ เพิ่มเหตุการณ์</button>
-    <button id="refreshButton" type="button">🔄 รีเฟรช</button>
-    <button id="logoutButton" type="button">ออกจากระบบ</button>
-    <button id="printButton" type="button">🖨️ พิมพ์</button>
-  </div>
-
-  <div id="form" class="form">
-    <h3 id="formTitle">เพิ่มเหตุการณ์</h3>
-    <div id="formStatus" class="status"></div>
-    <div class="form-grid">
-      <input id="title" placeholder="ชื่อเหตุการณ์" autocomplete="off">
-      <input id="threat_type" placeholder="ประเภทภัย" autocomplete="off">
-      <select id="threat_level">
-        <option value="ปกติ">ปกติ</option>
-        <option value="เฝ้าระวัง">เฝ้าระวัง</option>
-        <option value="เร่งด่วน">เร่งด่วน</option>
-        <option value="วิกฤต">วิกฤต</option>
-      </select>
-      <input id="event_datetime" type="datetime-local" aria-label="วันเวลาเหตุการณ์">
-      <input id="district" placeholder="อำเภอ" autocomplete="off">
-      <input id="subdistrict" placeholder="ตำบล" autocomplete="off">
-      <input id="visibility" placeholder="visibility" value="public" autocomplete="off">
-      <input id="lat" type="number" step="any" placeholder="ละติจูด">
-      <input id="lng" type="number" step="any" placeholder="ลองจิจูด">
-    </div>
-    <textarea id="description" placeholder="รายละเอียด" rows="4"></textarea>
-    <input type="hidden" id="editId">
-    <button id="saveButton" type="button">💾 บันทึก</button>
-    <button id="cancelButton" type="button">ยกเลิก</button>
-  </div>
+<button id="loginButton" type="button">🔐 เข้าสู่ระบบเจ้าหน้าที่</button>
+<div id="loginForm" class="login-form" aria-hidden="true"><h3>เข้าสู่ระบบเจ้าหน้าที่</h3><div id="loginStatus" class="status"></div><label for="loginEmail">อีเมล</label><input id="loginEmail" type="email" autocomplete="username" inputmode="email"><label for="loginPassword">รหัสผ่าน</label><input id="loginPassword" type="password" autocomplete="current-password"><button id="loginSubmit" type="button">เข้าสู่ระบบ</button><button id="loginCancel" class="secondary" type="button">ยกเลิก</button></div>
+<div id="adminMenu" class="admin"><span id="userStatus" class="success"></span><div id="roleNote" class="hint"></div><button id="addButton" type="button">➕ เพิ่มเหตุการณ์</button><button id="logoutButton" class="secondary" type="button">ออกจากระบบ</button><button id="printButton" class="secondary" type="button">🖨️ พิมพ์</button></div>
+<div id="form" class="form"><h3 id="formTitle">เพิ่มเหตุการณ์</h3><div id="formStatus" class="status"></div>
+<div class="form-grid">
+<input id="title" placeholder="ชื่อเหตุการณ์ *"><input id="threat_type" placeholder="ประเภทภัย *">
+<select id="threat_level"><option value="ปกติ">ปกติ</option><option value="เฝ้าระวัง">เฝ้าระวัง</option><option value="เร่งด่วน">เร่งด่วน</option><option value="วิกฤต">วิกฤต</option><option value="🔴 ภัยคุกคามควบคุมไม่ได้">🔴 ภัยคุกคามควบคุมไม่ได้</option></select>
+<select id="status"><option value="active">active</option><option value="resolved">resolved</option><option value="closed">closed</option></select>
+<input id="event_datetime" type="datetime-local" aria-label="วันเวลาเหตุการณ์"><input id="district" placeholder="อำเภอ"><input id="subdistrict" placeholder="ตำบล"><input id="report_status" placeholder="สถานะรายงาน"><input id="report_topic" placeholder="หัวข้อรายงาน"><input id="threat_source" placeholder="แหล่งข่าว"><input id="reporter_unit" placeholder="หน่วยรายงาน"><input id="urgency_level" placeholder="ระดับความเร่งด่วน"><input id="visibility" value="public" placeholder="visibility"><input id="lat" type="number" step="any" placeholder="ละติจูด"><input id="lng" type="number" step="any" placeholder="ลองจิจูด">
+</div><textarea id="description" placeholder="รายละเอียด" rows="4"></textarea>
+<label>ภาพประกอบ (JPEG/PNG/WebP ไม่เกิน 5 MB/ภาพ สูงสุด 4 ภาพ)</label><input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="existingImages" class="image-list"></div><div class="hint">รูปภาพจะเก็บใน Storage bucket ที่เป็น private และผูกกับเหตุการณ์ที่บันทึก</div>
+<input type="hidden" id="editId"><button id="saveButton" type="button">💾 บันทึก</button><button id="cancelButton" class="secondary" type="button">ยกเลิก</button>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
-
 const SUPABASE_URL='https://riuebseoczwwifxezcwj.supabase.co';
 const SUPABASE_KEY='sb_publishable_G6QyDB6Ux0Rd9yzbuQCCoQ_mkyu7wuO';
-const TABLE='threats';
-
+const TABLE='threats',IMAGE_TABLE='threat_images',IMAGE_BUCKET='threat-images',MAX_IMAGE_BYTES=5*1024*1024,MAX_IMAGES=4;
 const ROLE_LABELS={admin:'ผู้ดูแลระบบ',commander:'ผู้บังคับบัญชา',officer:'เจ้าหน้าที่',viewer:'ผู้ชม'};
 const ROLE_ALIASES={admin:'admin',administrator:'admin',commander:'commander',officer:'officer',viewer:'viewer','ผู้ดูแลระบบ':'admin','เจ้าหน้าที่':'officer','เจ้าหน้าที่ปฏิบัติการ':'officer'};
-const MANAGE_ROLES=new Set(['admin','officer']);
-const DELETE_ROLES=new Set(['admin']);
-
+const MANAGE_ROLES=new Set(['admin','officer']),DELETE_ROLES=new Set(['admin']);
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
-
-let rows=[];
-let currentUser=null;
-let currentRole=null;
-let realtimeChannel=null;
-let loadInProgress=false;
-let authBusy=false;
-
-const $=id=>document.getElementById(id);
-const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const normalizeRole=role=>String(role??'').trim().toLowerCase();
-const canonicalRole=role=>ROLE_ALIASES[normalizeRole(role)]||null;
-const roleCanManage=role=>MANAGE_ROLES.has(canonicalRole(role));
-const roleCanDelete=role=>DELETE_ROLES.has(canonicalRole(role));
-const roleLabel=role=>ROLE_LABELS[canonicalRole(role)]||String(role||'ไม่ระบุ');
-
-function setStatus(message,type=''){
-  const el=$('formStatus');
-  el.textContent=message||'';
-  el.className='status '+(type==='error'?'error':type==='success'?'success':'');
-}
-function setLoginStatus(message,type=''){
-  const el=$('loginStatus');
-  el.textContent=message||'';
-  el.className='status '+(type==='error'?'error':type==='success'?'success':'');
-}
-
-function setStaffVisible(visible){
-  $('loginButton').style.display=visible?'none':'inline-block';
-  $('loginForm').style.display='none';
-  $('loginForm').setAttribute('aria-hidden','true');
-  $('adminMenu').style.display=visible?'block':'none';
-  $('form').style.display='none';
-  if(!visible){
-    $('userStatus').textContent='';
-    $('roleNote').textContent='';
-    $('addButton').style.display='none';
-  }
-}
-
-function configureRoleUI(){
-  const manageable=roleCanManage(currentRole);
-  $('addButton').style.display=manageable?'inline-block':'none';
-  $('roleNote').textContent=manageable?'สิทธิ์: สร้างและแก้ไขเหตุการณ์'+(roleCanDelete(currentRole)?' และลบเหตุการณ์':''):'สิทธิ์: ดูข้อมูลและรายงานอย่างเดียว';
-}
-
-function setBusy(button,busy,label){
-  if(!button)return;
-  button.disabled=busy;
-  if(busy){
-    if(!button.dataset.originalText)button.dataset.originalText=button.textContent;
-    button.textContent=label||button.dataset.originalText;
-  }else if(button.dataset.originalText){
-    button.textContent=button.dataset.originalText;
-    delete button.dataset.originalText;
-  }
-}
-
-function formatDateTime(value){
-  if(!value)return '-';
-  const d=new Date(value);
-  if(Number.isNaN(d.getTime()))return esc(value);
-  return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',hour12:false,timeZone:'Asia/Bangkok'}).format(d);
-}
-
-function toDatetimeLocal(value){
-  if(!value)return '';
-  const d=new Date(value);
-  if(Number.isNaN(d.getTime()))return '';
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d).reduce((o,p)=>(o[p.type]=p.value,o),{});
-  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
-}
-
-function localInputToISO(value){
-  if(!value)return null;
-  const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
-  if(!match)return null;
-  const [,y,mo,d,h,mi]=match;
-  const date=new Date(`${y}-${mo}-${d}T${h}:${mi}:00+07:00`);
-  return Number.isNaN(date.getTime())?null:date.toISOString();
-}
-
-async function getCurrentProfile(user){
-  const {data,error}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
-  if(error)throw new Error('อ่านสิทธิ์ผู้ใช้ไม่สำเร็จ: '+error.message);
-  if(!data)throw new Error('ไม่พบ profile ของบัญชีนี้ในตาราง profiles');
-  const role=canonicalRole(data.role);
-  if(!role)throw new Error('ไม่รู้จัก role ของบัญชีนี้: '+(data.role||'ไม่ระบุ'));
-  return role;
-}
-
-async function loadReport(){
-  if(loadInProgress)return;
-  loadInProgress=true;
-  try{
-    const {data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});
-    if(error)throw new Error(error.message);
-    rows=Array.isArray(data)?data:[];
-    $('summary').textContent='เหตุการณ์ทั้งหมด '+rows.length+' รายการ'+(currentUser?' | สิทธิ์ '+roleLabel(currentRole):'');
-    $('summary').className='status success';
-    if(rows.length===0){
-      $('report').innerHTML='<tr><td colspan="7" class="muted">ยังไม่มีข้อมูลเหตุการณ์</td></tr>';
-      return;
-    }
-    $('report').innerHTML=rows.map(x=>{
-      const actions=currentUser
-        ? '<button type="button" data-action="edit" data-id="'+esc(x.id)+'"'+(roleCanManage(currentRole)?'':' disabled')+'>✏️ แก้ไข</button>'+
-          (roleCanDelete(currentRole)?'<button type="button" class="danger" data-action="delete" data-id="'+esc(x.id)+'">🗑️ ลบ</button>':'')
-        : '-';
-      const eventTime=x.event_datetime||x.created_at;
-      return '<tr><td>'+esc(x.title)+'</td><td>'+esc(x.threat_type)+'</td><td>'+esc(x.threat_level)+'</td><td>'+esc(x.district)+' / '+esc(x.subdistrict)+'</td><td>'+formatDateTime(eventTime)+'</td><td>'+esc(x.description)+'</td><td class="actions">'+actions+'</td></tr>';
-    }).join('');
-  }catch(error){
-    $('summary').textContent='โหลดข้อมูลไม่สำเร็จ: '+(error?.message||String(error));
-    $('summary').className='status error';
-    $('report').innerHTML='<tr><td colspan="7" class="error">'+esc(error?.message||String(error))+'</td></tr>';
-  }finally{loadInProgress=false;}
-}
-
-async function establishSession(session){
-  if(!session?.user){
-    currentUser=null;currentRole=null;setStaffVisible(false);await loadReport();return;
-  }
-  try{
-    const role=await getCurrentProfile(session.user);
-    currentUser=session.user;
-    currentRole=role;
-    setStaffVisible(true);
-    $('userStatus').textContent='ผู้ใช้: '+(session.user.email||session.user.id);
-    configureRoleUI();
-    await loadReport();
-  }catch(error){
-    currentUser=null;currentRole=null;setStaffVisible(false);
-    try{await sb.auth.signOut({scope:'local'});}catch(_){ }
-    $('summary').textContent=error.message;
-    $('summary').className='status error';
-    setLoginStatus(error.message,'error');
-  }
-}
-
-function showLoginForm(){
-  $('loginForm').style.display='block';
-  $('loginForm').setAttribute('aria-hidden','false');
-  setLoginStatus('');
-  $('loginEmail').focus();
-}
-function hideLoginForm(){
-  $('loginForm').style.display='none';
-  $('loginForm').setAttribute('aria-hidden','true');
-  setLoginStatus('');
-}
-
-async function login(){
-  if(authBusy)return;
-  const email=$('loginEmail').value.trim();
-  const password=$('loginPassword').value;
-  if(!email||!password){setLoginStatus('กรุณากรอกอีเมลและรหัสผ่าน','error');return;}
-  authBusy=true;
-  setBusy($('loginSubmit'),true,'กำลังเข้าสู่ระบบ...');
-  setLoginStatus('กำลังตรวจสอบบัญชี...');
-  try{
-    const {data,error}=await sb.auth.signInWithPassword({email,password});
-    if(error)throw new Error(error.message);
-    if(!data?.session?.user)throw new Error('เข้าสู่ระบบสำเร็จแต่ไม่พบ session');
-    await establishSession(data.session);
-    if(currentUser){
-      $('loginPassword').value='';
-      hideLoginForm();
-    }
-  }catch(error){
-    setLoginStatus('เข้าสู่ระบบไม่สำเร็จ: '+(error?.message||String(error)),'error');
-  }finally{
-    authBusy=false;
-    setBusy($('loginSubmit'),false);
-  }
-}
-
-async function logout(){
-  if(authBusy)return;
-  authBusy=true;
-  setBusy($('logoutButton'),true,'กำลังออกจากระบบ...');
-  try{
-    const {error}=await sb.auth.signOut({scope:'local'});
-    if(error)throw error;
-    currentUser=null;currentRole=null;setStaffVisible(false);await loadReport();
-  }catch(error){
-    alert('ออกจากระบบไม่สำเร็จ: '+(error?.message||String(error)));
-  }finally{
-    authBusy=false;
-    setBusy($('logoutButton'),false);
-  }
-}
-
-function clearForm(){
-  $('formTitle').textContent='เพิ่มเหตุการณ์';
-  $('editId').value='';
-  $('title').value='';
-  $('threat_type').value='';
-  $('threat_level').value='ปกติ';
-  $('event_datetime').value='';
-  $('district').value='';
-  $('subdistrict').value='';
-  $('visibility').value='public';
-  $('description').value='';
-  $('lat').value='';
-  $('lng').value='';
-  setStatus('');
-}
-
-function showForm(row=null){
-  if(!currentUser||!roleCanManage(currentRole)){alert('บัญชีนี้ไม่มีสิทธิ์แก้ไขข้อมูล');return;}
-  if(row){
-    $('formTitle').textContent='แก้ไขเหตุการณ์';
-    $('editId').value=row.id||'';
-    $('title').value=row.title??'';
-    $('threat_type').value=row.threat_type??'';
-    $('threat_level').value=row.threat_level??'ปกติ';
-    $('event_datetime').value=toDatetimeLocal(row.event_datetime||row.created_at);
-    $('district').value=row.district??'';
-    $('subdistrict').value=row.subdistrict??'';
-    $('visibility').value=row.visibility??'public';
-    $('description').value=row.description??'';
-    $('lat').value=row.latitude??'';
-    $('lng').value=row.longitude??'';
-  }else{
-    clearForm();
-  }
-  setStatus('');
-  $('form').style.display='block';
-  $('title').focus();
-}
-
-async function saveThreat(){
-  if(!currentUser||!roleCanManage(currentRole)){alert('เซสชันหมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่');return;}
-  const title=$('title').value.trim();
-  const threatType=$('threat_type').value.trim();
-  if(!title||!threatType){setStatus('กรุณากรอกชื่อเหตุการณ์และประเภทภัย','error');return;}
-  const latitude=$('lat').value.trim();
-  const longitude=$('lng').value.trim();
-  if(latitude!==''&&!Number.isFinite(Number(latitude))){setStatus('ละติจูดไม่ใช่ตัวเลขที่ถูกต้อง','error');return;}
-  if(longitude!==''&&!Number.isFinite(Number(longitude))){setStatus('ลองจิจูดไม่ใช่ตัวเลขที่ถูกต้อง','error');return;}
-  const eventDatetimeInput=$('event_datetime').value;
-  const eventDatetime=localInputToISO(eventDatetimeInput);
-  if(eventDatetimeInput&&!eventDatetime){setStatus('วันเวลาเหตุการณ์ไม่ถูกต้อง','error');return;}
-
-  const payload={
-    title,
-    threat_type:threatType,
-    threat_level:$('threat_level').value,
-    event_datetime:eventDatetime,
-    description:$('description').value.trim()||null,
-    district:$('district').value.trim()||null,
-    subdistrict:$('subdistrict').value.trim()||null,
-    visibility:$('visibility').value.trim()||'public',
-    latitude:latitude===''?null:Number(latitude),
-    longitude:longitude===''?null:Number(longitude)
-  };
-  const id=$('editId').value.trim();
-  const button=$('saveButton');
-  setBusy(button,true,'กำลังบันทึก...');
-  setStatus('กำลังบันทึก...');
-  try{
-    let result;
-    if(id){
-      result=await sb.from(TABLE).update(payload).eq('id',id).select('id,updated_at').single();
-    }else{
-      result=await sb.from(TABLE).insert({...payload,created_by:currentUser.id}).select('id,created_at,updated_at').single();
-    }
-    if(result.error)throw new Error(result.error.message);
-    if(!result.data)throw new Error('Supabase ไม่ส่งข้อมูลยืนยันการบันทึกกลับมา');
-    clearForm();
-    $('form').style.display='none';
-    await loadReport();
-    alert(id?'แก้ไขเหตุการณ์สำเร็จ':'บันทึกเหตุการณ์สำเร็จ');
-  }catch(error){
-    const message=error?.message||String(error);
-    setStatus('บันทึกไม่สำเร็จ: '+message,'error');
-    alert('บันทึกไม่สำเร็จ: '+message);
-  }finally{
-    setBusy(button,false);
-  }
-}
-
-async function deleteThreat(id){
-  if(!currentUser||!roleCanDelete(currentRole)){alert('เฉพาะ admin เท่านั้นที่ลบเหตุการณ์ได้');return;}
-  const row=rows.find(r=>String(r.id)===String(id));
-  if(!row){alert('ไม่พบเหตุการณ์ที่ต้องการลบ');return;}
-  if(!confirm('ยืนยันลบเหตุการณ์นี้?\n\n'+(row.title||'')))return;
-  try{
-    const {data,error}=await sb.from(TABLE).delete().eq('id',id).select('id').single();
-    if(error)throw new Error(error.message);
-    if(!data)throw new Error('ไม่พบข้อมูลที่ถูกลบหรือไม่มีสิทธิ์ลบ');
-    await loadReport();
-    alert('ลบเหตุการณ์สำเร็จ');
-  }catch(error){
-    alert('ลบไม่สำเร็จ: '+(error?.message||String(error)));
-  }
-}
-
-$('loginButton').addEventListener('click',showLoginForm);
-$('loginSubmit').addEventListener('click',login);
-$('loginCancel').addEventListener('click',hideLoginForm);
-$('loginPassword').addEventListener('keydown',event=>{if(event.key==='Enter')login();});
-$('addButton').addEventListener('click',()=>showForm());
-$('refreshButton').addEventListener('click',loadReport);
-$('logoutButton').addEventListener('click',logout);
-$('printButton').addEventListener('click',()=>window.print());
-$('cancelButton').addEventListener('click',()=>{$('form').style.display='none';clearForm();});
-$('saveButton').addEventListener('click',saveThreat);
-$('report').addEventListener('click',event=>{
-  const button=event.target.closest('button[data-action]');
-  if(!button||button.disabled)return;
-  const id=button.dataset.id;
-  if(button.dataset.action==='edit'){
-    const row=rows.find(r=>String(r.id)===String(id));
-    if(row)showForm(row);
-  }else if(button.dataset.action==='delete'){
-    deleteThreat(id);
-  }
-});
-
-sb.auth.onAuthStateChange((event)=>{
-  if(event==='SIGNED_OUT'){
-    currentUser=null;
-    currentRole=null;
-    setStaffVisible(false);
-    loadReport();
-  }
-});
-
-async function init(){
-  setStaffVisible(false);
-  try{
-    const {data,error}=await sb.auth.getSession();
-    if(error)throw error;
-    await establishSession(data.session);
-  }catch(error){
-    $('summary').textContent='เริ่มต้นระบบไม่สำเร็จ: '+(error?.message||String(error));
-    $('summary').className='status error';
-    setStaffVisible(false);
-  }
-
-  realtimeChannel=sb.channel('threats-live')
-    .on('postgres_changes',{event:'*',schema:'public',table:TABLE},()=>loadReport())
-    .subscribe();
-}
-
-window.addEventListener('beforeunload',()=>{
-  if(realtimeChannel)sb.removeChannel(realtimeChannel);
-});
-
+let rows=[],currentUser=null,currentRole=null,realtimeChannel=null,loadInProgress=false,refreshQueued=false,authBusy=false;
+const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const canonicalRole=r=>ROLE_ALIASES[String(r??'').trim().toLowerCase()]||null;const roleCanManage=r=>MANAGE_ROLES.has(canonicalRole(r));const roleCanDelete=r=>DELETE_ROLES.has(canonicalRole(r));const roleLabel=r=>ROLE_LABELS[canonicalRole(r)]||'ไม่ระบุ';
+function setStatus(msg,type=''){const e=$('formStatus');e.textContent=msg||'';e.className='status '+(type==='error'?'error':type==='success'?'success':'')}
+function setLoginStatus(msg,type=''){const e=$('loginStatus');e.textContent=msg||'';e.className='status '+(type==='error'?'error':type==='success'?'success':'')}
+function setStaffVisible(v){$('loginButton').style.display=v?'none':'inline-block';$('loginForm').style.display='none';$('adminMenu').style.display=v?'block':'none';$('form').style.display='none';if(!v){$('userStatus').textContent='';$('roleNote').textContent='';}}
+function configureRoleUI(){const m=roleCanManage(currentRole);$('addButton').style.display=m?'inline-block':'none';$('roleNote').textContent=m?'สิทธิ์: สร้างและแก้ไข'+(roleCanDelete(currentRole)?' และลบเหตุการณ์':''):'สิทธิ์: ดูข้อมูลและรายงานอย่างเดียว'}
+function setBusy(b,busy,label){if(!b)return;b.disabled=busy;if(busy){if(!b.dataset.originalText)b.dataset.originalText=b.textContent;b.textContent=label||'กำลังทำงาน...'}else if(b.dataset.originalText){b.textContent=b.dataset.originalText;delete b.dataset.originalText}}
+function formatDateTime(v){if(!v)return'-';const d=new Date(v);if(Number.isNaN(d.getTime()))return esc(v);return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',hour12:false,timeZone:'Asia/Bangkok'}).format(d)}
+function toDatetimeLocal(v){if(!v)return'';const d=new Date(v);if(Number.isNaN(d.getTime()))return'';const p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,hourCycle:'h23'}).formatToParts(d).reduce((o,x)=>(o[x.type]=x.value,o),{});return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`}
+function localInputToISO(v){if(!v)return null;const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(v);if(!m)return null;const d=new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+07:00`);return Number.isNaN(d.getTime())?null:d.toISOString()}
+function isToday(v){if(!v)return false;const d=new Date(v);const now=new Date();return d.toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'})===now.toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'})}
+function levelClass(v){return String(v||'').includes('🔴')||v==='วิกฤต'?'badge badge-critical':'badge'}
+function updateStats(){const total=rows.length,active=rows.filter(r=>String(r.status||'').toLowerCase()==='active').length,critical=rows.filter(r=>String(r.threat_level||'').includes('🔴')||r.threat_level==='วิกฤต').length,today=rows.filter(r=>isToday(r.event_datetime||r.created_at)).length;$('statTotal').textContent=total;$('statActive').textContent=active;$('statCritical').textContent=critical;$('statToday').textContent=today}
+function filteredRows(){const q=$('search').value.trim().toLowerCase(),lv=$('filterLevel').value,st=$('filterStatus').value;return rows.filter(r=>{const hay=[r.title,r.threat_type,r.district,r.subdistrict,r.description,r.report_topic,r.threat_source,r.reporter_unit].map(v=>String(v||'').toLowerCase()).join(' ');return(!q||hay.includes(q))&&(!lv||r.threat_level===lv)&&(!st||r.status===st)})}
+function renderRows(){const list=filteredRows();if(!list.length){$('report').innerHTML='<tr><td colspan="9" class="muted">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';return}$('report').innerHTML=list.map(r=>{const actions=currentUser?'<button type="button" data-action="edit" data-id="'+esc(r.id)+'"'+(roleCanManage(currentRole)?'':' disabled')+'>✏️ แก้ไข</button>'+(roleCanDelete(currentRole)?'<button type="button" class="danger" data-action="delete" data-id="'+esc(r.id)+'">🗑️ ลบ</button>':''):'-';return `<tr><td>${esc(r.title)}</td><td>${esc(r.threat_type)}</td><td><span class="${levelClass(r.threat_level)}">${esc(r.threat_level)}</span></td><td>${esc(r.status||'-')}</td><td>${esc(r.district||'-')} / ${esc(r.subdistrict||'-')}</td><td>${formatDateTime(r.event_datetime||r.created_at)}</td><td>${esc(r.threat_source||'-')} / ${esc(r.reporter_unit||'-')}</td><td>${Number(r.image_count||0)?'🖼️ '+r.image_count:'-'}</td><td class="actions">${actions}</td></tr>`}).join('')}
+async function loadReport(){if(loadInProgress){refreshQueued=true;return}loadInProgress=true;try{const {data,error}=await sb.from(TABLE).select('*').order('created_at',{ascending:false});if(error)throw new Error(error.message);rows=Array.isArray(data)?data:[];try{const ids=rows.map(r=>r.id).filter(Boolean);if(ids.length){const {data:imgs,error:ie}=await sb.from(IMAGE_TABLE).select('threat_id').in('threat_id',ids);if(!ie){const counts={};(imgs||[]).forEach(i=>counts[i.threat_id]=(counts[i.threat_id]||0)+1);rows=rows.map(r=>({...r,image_count:counts[r.id]||0}))}}}catch(_){rows=rows.map(r=>({...r,image_count:Number(r.image_count||0)}))}updateStats();renderRows();$('summary').textContent=`แสดง ${filteredRows().length} / ${rows.length} เหตุการณ์`+(currentUser?' | สิทธิ์ '+roleLabel(currentRole):'');$('summary').className='status success'}catch(e){$('summary').textContent='โหลดข้อมูลไม่สำเร็จ: '+(e?.message||String(e));$('summary').className='status error';$('report').innerHTML='<tr><td colspan="9" class="error">'+esc(e?.message||String(e))+'</td></tr>'}finally{loadInProgress=false;if(refreshQueued){refreshQueued=false;queueMicrotask(loadReport)}}}
+async function getCurrentProfile(user){const {data,error}=await sb.from('profiles').select('role,name,department,position').eq('id',user.id).maybeSingle();if(error)throw new Error('อ่านสิทธิ์ผู้ใช้ไม่สำเร็จ: '+error.message);if(!data)throw new Error('ไม่พบ profile ของบัญชีนี้ในตาราง profiles');const role=canonicalRole(data.role);if(!role)throw new Error('ไม่รู้จัก role ของบัญชีนี้: '+(data.role||'ไม่ระบุ'));return {...data,role}}
+async function establishSession(session){if(!session?.user){currentUser=null;currentRole=null;setStaffVisible(false);await loadReport();return}try{const p=await getCurrentProfile(session.user);currentUser=session.user;currentRole=p.role;setStaffVisible(true);$('userStatus').textContent='ผู้ใช้: '+(session.user.email||session.user.id);configureRoleUI();await loadReport()}catch(e){currentUser=null;currentRole=null;setStaffVisible(false);try{await sb.auth.signOut({scope:'local'})}catch(_){}$('summary').textContent=e.message;$('summary').className='status error';setLoginStatus(e.message,'error')}}
+function showLoginForm(){$('loginForm').style.display='block';$('loginForm').setAttribute('aria-hidden','false');setLoginStatus('');$('loginEmail').focus()}function hideLoginForm(){$('loginForm').style.display='none';$('loginForm').setAttribute('aria-hidden','true');setLoginStatus('')}
+async function login(){if(authBusy)return;const email=$('loginEmail').value.trim(),password=$('loginPassword').value;if(!email||!password){setLoginStatus('กรุณากรอกอีเมลและรหัสผ่าน','error');return}authBusy=true;setBusy($('loginSubmit'),true,'กำลังเข้าสู่ระบบ...');setLoginStatus('กำลังตรวจสอบบัญชี...');try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw new Error(error.message);if(!data?.session?.user)throw new Error('เข้าสู่ระบบสำเร็จแต่ไม่พบ session');await establishSession(data.session);if(currentUser){$('loginPassword').value='';hideLoginForm()}}catch(e){setLoginStatus('เข้าสู่ระบบไม่สำเร็จ: '+(e?.message||String(e)),'error')}finally{authBusy=false;setBusy($('loginSubmit'),false)}}
+async function logout(){if(authBusy)return;authBusy=true;setBusy($('logoutButton'),true,'กำลังออกจากระบบ...');try{const {error}=await sb.auth.signOut({scope:'local'});if(error)throw error;currentUser=null;currentRole=null;setStaffVisible(false);await loadReport()}catch(e){alert('ออกจากระบบไม่สำเร็จ: '+(e?.message||String(e)))}finally{authBusy=false;setBusy($('logoutButton'),false)}}
+function clearForm(){$('formTitle').textContent='เพิ่มเหตุการณ์';$('editId').value='';['title','threat_type','event_datetime','district','subdistrict','report_status','report_topic','threat_source','reporter_unit','urgency_level','lat','lng','description'].forEach(id=>$(id).value='');$('threat_level').value='ปกติ';$('status').value='active';$('visibility').value='public';$('imageFiles').value='';$('existingImages').innerHTML='';setStatus('')}
+async function loadExistingImages(threatId){$('existingImages').innerHTML='';if(!threatId)return;const {data,error}=await sb.from(IMAGE_TABLE).select('id,storage_path,file_name,caption,sort_order').eq('threat_id',threatId).order('sort_order');if(error){$('existingImages').innerHTML='<span class="hint">อ่านรายการภาพไม่ได้: '+esc(error.message)+'</span>';return}for(const img of data||[]){const item=document.createElement('div');item.className='image-item';const label=document.createElement('div');label.textContent=img.file_name;item.appendChild(label);const btn=document.createElement('button');btn.type='button';btn.textContent='เปิดภาพ';btn.className='secondary';btn.onclick=async()=>{const {data:s,error:se}=await sb.storage.from(IMAGE_BUCKET).createSignedUrl(img.storage_path,300);if(se||!s?.signedUrl){alert('เปิดภาพไม่ได้: '+(se?.message||'ไม่พบ URL'));return}window.open(s.signedUrl,'_blank','noopener,noreferrer')};item.appendChild(btn);if(roleCanDelete(currentRole)){const del=document.createElement('button');del.type='button';del.textContent='ลบภาพ';del.className='danger';del.onclick=async()=>{if(!confirm('ยืนยันลบภาพนี้?'))return;const {error:de}=await sb.storage.from(IMAGE_BUCKET).remove([img.storage_path]);if(de){alert('ลบไฟล์ไม่ได้: '+de.message);return}const {error:re}=await sb.from(IMAGE_TABLE).delete().eq('id',img.id);if(re){alert('ลบรายการภาพไม่ได้: '+re.message);return}await loadExistingImages(threatId);await loadReport()};item.appendChild(del)}$('existingImages').appendChild(item)}}
+function showForm(row=null){if(!currentUser||!roleCanManage(currentRole)){alert('บัญชีนี้ไม่มีสิทธิ์แก้ไขข้อมูล');return}clearForm();if(row){$('formTitle').textContent='แก้ไขเหตุการณ์';$('editId').value=row.id||'';$('title').value=row.title??'';$('threat_type').value=row.threat_type??'';const option=[...$('threat_level').options].find(o=>o.value===row.threat_level);if(option)$('threat_level').value=row.threat_level;else{const o=document.createElement('option');o.value=row.threat_level;o.textContent=row.threat_level;$('threat_level').appendChild(o);$('threat_level').value=row.threat_level}$('status').value=row.status||'active';$('event_datetime').value=toDatetimeLocal(row.event_datetime||row.created_at);$('district').value=row.district??'';$('subdistrict').value=row.subdistrict??'';$('report_status').value=row.report_status??'';$('report_topic').value=row.report_topic??'';$('threat_source').value=row.threat_source??'';$('reporter_unit').value=row.reporter_unit??'';$('urgency_level').value=row.urgency_level??'';$('visibility').value=row.visibility??'public';$('description').value=row.description??'';$('lat').value=row.latitude??'';$('lng').value=row.longitude??'';loadExistingImages(row.id)}$('form').style.display='block';$('title').focus()}
+function validateImages(files){const list=[...files];if(list.length>MAX_IMAGES)throw new Error('เลือกภาพได้สูงสุด '+MAX_IMAGES+' ภาพ');for(const f of list){if(!['image/jpeg','image/png','image/webp'].includes(f.type))throw new Error('รองรับเฉพาะ JPEG, PNG, WebP');if(f.size>MAX_IMAGE_BYTES)throw new Error('ภาพ '+f.name+' มีขนาดเกิน 5 MB')}return list}
+async function uploadImages(threatId,files){const list=validateImages(files);if(!list.length)return;const {count,error:ce}=await sb.from(IMAGE_TABLE).select('id',{count:'exact',head:true}).eq('threat_id',threatId);if(ce)throw new Error('ตรวจจำนวนภาพเดิมไม่สำเร็จ: '+ce.message);if((count||0)+list.length>MAX_IMAGES)throw new Error('เหตุการณ์หนึ่งรายการมีภาพได้สูงสุด 4 ภาพ');for(let i=0;i<list.length;i++){const f=list[i],safe=f.name.replace(/[^\w.\-ก-๙]/g,'_'),path=`threats/${threatId}/${crypto.randomUUID()}-${safe}`;const {error:ue}=await sb.storage.from(IMAGE_BUCKET).upload(path,f,{contentType:f.type,upsert:false});if(ue)throw new Error('อัปโหลด '+f.name+' ไม่สำเร็จ: '+ue.message);const {error:ie}=await sb.from(IMAGE_TABLE).insert({threat_id:threatId,storage_path:path,file_name:f.name,mime_type:f.type,file_size:f.size,sort_order:(count||0)+i+1,created_by:currentUser.id});if(ie){await sb.storage.from(IMAGE_BUCKET).remove([path]);throw new Error('บันทึกรายการภาพไม่สำเร็จ: '+ie.message)}}}
+async function saveThreat(){if(!currentUser||!roleCanManage(currentRole)){alert('เซสชันหมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่');return}const title=$('title').value.trim(),threatType=$('threat_type').value.trim();if(!title||!threatType){setStatus('กรุณากรอกชื่อเหตุการณ์และประเภทภัย','error');return}const lat=$('lat').value.trim(),lng=$('lng').value.trim();if(lat!==''&&!Number.isFinite(Number(lat))){setStatus('ละติจูดไม่ถูกต้อง','error');return}if(lng!==''&&!Number.isFinite(Number(lng))){setStatus('ลองจิจูดไม่ถูกต้อง','error');return}const eventDatetime=localInputToISO($('event_datetime').value);if($('event_datetime').value&&!eventDatetime){setStatus('วันเวลาเหตุการณ์ไม่ถูกต้อง','error');return}let files=[];try{files=validateImages($('imageFiles').files)}catch(e){setStatus(e.message,'error');return}const payload={title,threat_type:threatType,threat_level:$('threat_level').value,status:$('status').value,event_datetime:eventDatetime,description:$('description').value.trim()||null,district:$('district').value.trim()||null,subdistrict:$('subdistrict').value.trim()||null,report_status:$('report_status').value.trim()||null,report_topic:$('report_topic').value.trim()||null,threat_source:$('threat_source').value.trim()||null,reporter_unit:$('reporter_unit').value.trim()||null,urgency_level:$('urgency_level').value.trim()||null,visibility:$('visibility').value.trim()||'public',latitude:lat===''?null:Number(lat),longitude:lng===''?null:Number(lng)};const id=$('editId').value.trim();const b=$('saveButton');setBusy(b,true,'กำลังบันทึก...');setStatus('กำลังบันทึก...');try{let result;if(id)result=await sb.from(TABLE).update(payload).eq('id',id).select('id,updated_at').single();else result=await sb.from(TABLE).insert({...payload,created_by:currentUser.id}).select('id,created_at,updated_at').single();if(result.error)throw new Error(result.error.message);if(!result.data)throw new Error('Supabase ไม่ส่งข้อมูลยืนยันกลับมา');if(files.length)await uploadImages(result.data.id,files);$('form').style.display='none';clearForm();await loadReport();alert(id?'แก้ไขเหตุการณ์สำเร็จ':'บันทึกเหตุการณ์สำเร็จ')}catch(e){setStatus('บันทึกไม่สำเร็จ: '+(e?.message||String(e)),'error');alert('บันทึกไม่สำเร็จ: '+(e?.message||String(e)))}finally{setBusy(b,false)}}
+async function deleteThreat(id){if(!currentUser||!roleCanDelete(currentRole)){alert('เฉพาะ admin เท่านั้นที่ลบเหตุการณ์ได้');return}const row=rows.find(r=>String(r.id)===String(id));if(!row)return;if(!confirm('ยืนยันลบเหตุการณ์นี้?\n\n'+(row.title||'')))return;try{const {data,error}=await sb.from(TABLE).delete().eq('id',id).select('id').single();if(error)throw new Error(error.message);if(!data)throw new Error('ไม่พบข้อมูลที่ถูกลบหรือไม่มีสิทธิ์ลบ');await loadReport();alert('ลบเหตุการณ์สำเร็จ')}catch(e){alert('ลบไม่สำเร็จ: '+(e?.message||String(e)))}}
+$('loginButton').addEventListener('click',showLoginForm);$('loginSubmit').addEventListener('click',login);$('loginCancel').addEventListener('click',hideLoginForm);$('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('addButton').addEventListener('click',()=>showForm());$('refreshButton').addEventListener('click',loadReport);$('logoutButton').addEventListener('click',logout);$('printButton').addEventListener('click',()=>window.print());$('cancelButton').addEventListener('click',()=>{$('form').style.display='none';clearForm()});$('saveButton').addEventListener('click',saveThreat);['search','filterLevel','filterStatus'].forEach(id=>$(id).addEventListener('input',()=>{renderRows();$('summary').textContent=`แสดง ${filteredRows().length} / ${rows.length} เหตุการณ์`+(currentUser?' | สิทธิ์ '+roleLabel(currentRole):'')}));$('report').addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||b.disabled)return;const row=rows.find(r=>String(r.id)===String(b.dataset.id));if(b.dataset.action==='edit'&&row)showForm(row);if(b.dataset.action==='delete')deleteThreat(b.dataset.id)});
+sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){currentUser=null;currentRole=null;setStaffVisible(false);queueMicrotask(loadReport)}else if(['SIGNED_IN','TOKEN_REFRESHED','USER_UPDATED'].includes(event)){queueMicrotask(()=>establishSession(session))}});
+async function init(){setStaffVisible(false);try{const {data,error}=await sb.auth.getSession();if(error)throw error;await establishSession(data.session)}catch(e){$('summary').textContent='เริ่มต้นระบบไม่สำเร็จ: '+(e?.message||String(e));$('summary').className='status error';setStaffVisible(false)}realtimeChannel=sb.channel('threats-live').on('postgres_changes',{event:'*',schema:'public',table:TABLE},()=>loadReport()).subscribe();window.addEventListener('beforeunload',()=>{if(realtimeChannel)sb.removeChannel(realtimeChannel)})}
 init();
 </script>
 </body>
