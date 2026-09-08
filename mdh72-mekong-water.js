@@ -1,10 +1,50 @@
-(()=>{
-  const FN='https://riuebseoczwwifxezcwj.supabase.co/functions/v1/get-mekong-mukdahan-water';
+(() => {
+  'use strict';
+  const API='https://api-v3.thaiwater.net/api/v1/thaiwater30/provinces/waterlevel';
+  const FN='get-mekong-mukdahan-water';
   const SOURCE='https://mukdahan.thaiwater.net/wl';
-  const ID='mdh72-mekong-water';
-  function esc(s){return String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));}
-  function statusText(v){const n=Number(v);return ({1:'น้ำน้อยวิกฤต',2:'น้ำน้อย',3:'ปกติ',4:'น้ำมาก',5:'น้ำล้นตลิ่ง'})[n]||String(v??'ไม่ระบุ');}
-  function ensure(){if(document.getElementById(ID))return document.getElementById(ID);const s=document.createElement('style');s.id=ID+'-style';s.textContent=`#${ID}{position:fixed;right:18px;bottom:18px;width:min(390px,calc(100vw - 36px));z-index:2147483000;background:rgba(5,18,31,.97);color:#eaf7ff;border:1px solid rgba(91,194,255,.45);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.4);font-family:system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}#${ID} .h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:linear-gradient(135deg,#073a57,#062238)}#${ID} .title{font-weight:800;font-size:15px}#${ID} .sub{font-size:11px;opacity:.7;margin-top:2px}#${ID} .b{padding:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.cell{padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.035)}.k{font-size:11px;opacity:.65}.v{font-size:20px;font-weight:800;margin-top:2px}.ok{color:#8ee7b0}.warn{color:#ffd37a}.err{color:#ff8e8e}.foot{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;font-size:10px;opacity:.7}#${ID} button{border:0;border-radius:8px;padding:7px 10px;background:#1677a9;color:white;font-weight:700;cursor:pointer}#${ID} a{color:#8edcff;text-decoration:none}`;document.head.appendChild(s);const d=document.createElement('div');d.id=ID;d.innerHTML='<div class="h"><div><div class="title">🌊 สถานการณ์น้ำแม่น้ำโขง</div><div class="sub">สถานี 11688855 • ridhydro_Kh.104 • ThaiWater</div></div><button id="mdh72-water-refresh">↻</button></div><div class="b" id="mdh72-water-body"><div>กำลังดึงข้อมูลจาก ThaiWater…</div></div>';document.body.appendChild(d);document.getElementById('mdh72-water-refresh').onclick=load;return d;}
-  async function load(){const d=ensure(),body=d.querySelector('#mdh72-water-body'),btn=d.querySelector('#mdh72-water-refresh');btn.disabled=true;body.innerHTML='<div>กำลังดึงข้อมูลล่าสุด…</div>';try{let token='';try{const sb=window.supabaseClient||window.supabase||window.sb;if(sb?.auth){const r=await sb.auth.getSession();token=r?.data?.session?.access_token||'';}}catch{}if(!token)throw new Error('ต้องเข้าสู่ระบบก่อนจึงจะดึงข้อมูลจากระบบได้');const r=await fetch(FN,{method:'GET',headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}});const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||`HTTP ${r.status}`);const level=data.level_m_msl==null?null:Number(data.level_m_msl);const flow=data.flow_m3s==null?null:Number(data.flow_m3s);const status=statusText(data.situation_level);const cls=/ล้น|วิกฤต/.test(status)?'err':/น้อย|มาก/.test(status)?'warn':'ok';const measured=data.measure_time?new Date(data.measure_time):null;const measuredText=measured&&!Number.isNaN(measured.getTime())?measured.toLocaleString('th-TH'):String(data.measure_time||'ไม่ระบุ');const fetched=data.fetched_at?new Date(data.fetched_at).toLocaleString('th-TH'):'ไม่ระบุ';body.innerHTML=`<div class="grid"><div class="cell"><div class="k">ระดับน้ำ</div><div class="v">${level==null?'—':esc(level.toFixed(2))+' ม.รทก.'}</div></div><div class="cell"><div class="k">อัตราการไหล</div><div class="v">${flow==null?'—':esc(flow.toLocaleString('th-TH'))+' ลบ.ม./วิ'}</div></div><div class="cell"><div class="k">สถานการณ์</div><div class="v ${cls}" style="font-size:16px">${esc(status)}</div></div><div class="cell"><div class="k">สถานี</div><div class="v" style="font-size:13px">${esc(data.station_name||'วัดศรีบุญเรือง')}</div></div></div><div style="margin-top:8px;font-size:11px;opacity:.8">เวลาวัด: ${esc(measuredText)}</div><div style="margin-top:4px;font-size:11px;opacity:.8">${data.diff_wl_bank_text?esc(data.diff_wl_bank_text):''}</div><div class="foot"><span>ดึงข้อมูล ${esc(fetched)}</span><a href="${SOURCE}" target="_blank" rel="noopener">เปิดต้นทาง ↗</a></div>`;}catch(e){body.innerHTML=`<div class="err"><b>ดึงข้อมูลไม่สำเร็จ</b><div style="margin-top:6px;font-size:12px">${esc(e.message)}</div><div class="foot"><a href="${SOURCE}" target="_blank" rel="noopener">เปิด ThaiWater โดยตรง ↗</a></div></div>`;}finally{btn.disabled=false;}}
-  ensure();load();setInterval(load,10*60*1000);window.mdh72RefreshMekongWater=load;
+  const STATION_ID=11688855;
+  const OLD_CODE='ridhydro_Kh.104';
+  let timer=null,busy=false;
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>{if(v===null||v===undefined||v==='')return null;const n=Number(String(v).replace(/,/g,'').trim());return Number.isFinite(n)?n:null;};
+  const statusText=v=>({1:'น้ำน้อยวิกฤต',2:'น้ำน้อย',3:'ปกติ',4:'น้ำมาก',5:'น้ำล้นตลิ่ง'})[Number(v)]||String(v??'ไม่ระบุ');
+  const statusClass=v=>Number(v)>=5?'mdh-water-err':(Number(v)===1||Number(v)===2||Number(v)===4?'mdh-water-warn':'mdh-water-ok');
+  function findStation(json){
+    const rows=Array.isArray(json?.data)?json.data:[];
+    return rows.find(x=>Number(x?.station?.id)===STATION_ID && String(x?.station?.tele_station_oldcode||'')===OLD_CODE && String(x?.geocode?.province_code||'')==='49')||null;
+  }
+  function normalize(record,source){
+    if(!record)throw new Error(`ไม่พบสถานี ${STATION_ID}/${OLD_CODE} ใน Response ของ ThaiWater`);
+    const level=num(record.waterlevel_msl),flow=num(record.flow_rate??record.discharge);
+    if(level===null && flow===null)throw new Error('พบสถานีเป้าหมาย แต่ไม่มีค่าระดับน้ำ/อัตราการไหล');
+    return {ok:true,source:SOURCE,api_source:source,station_id:STATION_ID,old_code:OLD_CODE,station_name:record.station?.tele_station_name?.th||'วัดศรีบุญเรือง',level_m_msl:level,flow_m3s:flow,situation_level:record.situation_level,measure_time:record.waterlevel_datetime,diff_wl_bank_m:num(record.diff_wl_bank),diff_wl_bank_text:record.diff_wl_bank_text,latitude:num(record.station?.tele_station_lat),longitude:num(record.station?.tele_station_long),fetched_at:new Date().toISOString()};
+  }
+  function renderLoading(){const el=$('waterList');if(el)el.innerHTML='<div class="mdh-water-wrap"><div class="mdh-water-card">🌊 กำลังดึงข้อมูลสถานีวัดศรีบุญเรืองจาก ThaiWater…</div></div>';}
+  function renderError(msg){const el=$('waterList');if(!el)return;el.innerHTML=`<div class="mdh-water-wrap"><div class="mdh-water-card"><div class="mdh-water-title"><span>🌊 แม่น้ำโขง — มุกดาหาร</span><span class="mdh-water-err">● ข้อมูลไม่พร้อม</span></div><div class="mdh-water-meta">${esc(msg)}</div><div class="mdh-water-actions"><button class="mdh-water-btn" onclick="window.mdhFetchMekongWater(true)">↻ ลองใหม่</button><a class="mdh-water-btn" href="${SOURCE}" target="_blank" rel="noopener">เปิด ThaiWater</a></div></div></div>`;}
+  function render(d){
+    const level=num(d.level_m_msl),flow=num(d.flow_m3s),status=statusText(d.situation_level),cls=statusClass(d.situation_level);
+    const t=d.measure_time?new Date(d.measure_time):null,ts=t&&!Number.isNaN(t.getTime())?t.toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'medium'}):String(d.measure_time||'ไม่ระบุ');
+    const el=$('waterList');if(!el)return;
+    el.innerHTML=`<div class="mdh-water-wrap"><div class="mdh-water-card"><div class="mdh-water-title"><span>🌊 ${esc(d.station_name)} — แม่น้ำโขง</span><span class="${cls}">● ${esc(status)}</span></div><div class="mdh-water-grid"><div class="mdh-water-metric"><small>ระดับน้ำ</small><b>${level===null?'—':esc(level.toFixed(2))} <span style="font-size:11px">ม.รทก.</span></b></div><div class="mdh-water-metric"><small>อัตราการไหล</small><b>${flow===null?'—':esc(flow.toLocaleString('th-TH',{maximumFractionDigits:2}))} <span style="font-size:11px">ลบ.ม./วินาที</span></b></div><div class="mdh-water-metric"><small>ข้อมูลล่าสุด</small><b style="font-size:13px">${esc(ts)}</b></div></div><div class="mdh-water-status ${cls}">สถานการณ์: ${esc(status)}</div><div class="mdh-water-meta">แหล่งข้อมูล: ThaiWater API จริง • ${esc(API)} • สถานี ${STATION_ID} (${OLD_CODE}) • ไม่ใช้ค่าจำลอง</div><div class="mdh-water-actions"><button class="mdh-water-btn" onclick="window.mdhFetchMekongWater(true)">↻ อัปเดตทันที</button><a class="mdh-water-btn" href="${SOURCE}" target="_blank" rel="noopener">↗ แหล่งข้อมูลต้นทาง</a></div></div></div>`;
+  }
+  async function fetchDirect(){const r=await fetch(API,{method:'GET',headers:{Accept:'application/json'},cache:'no-store'});const text=await r.text();let json;try{json=JSON.parse(text)}catch{throw new Error(`ThaiWater API ส่งข้อมูลไม่ใช่ JSON (HTTP ${r.status})`)}if(!r.ok||json?.result!=='OK')throw new Error(`ThaiWater API HTTP ${r.status}`);return normalize(findStation(json),API);}
+  async function fetchEdge(){
+    const sb=window.sb;if(!sb?.auth?.getSession||!sb?.functions?.invoke)throw new Error('Supabase client ยังไม่พร้อม');
+    const {data,error}=await sb.functions.invoke(FN,{method:'GET'});if(error)throw new Error(error.message||'Supabase Edge Function เรียกไม่สำเร็จ');if(!data?.ok)throw new Error(data?.error||'Edge Function ไม่มีข้อมูล');return data;
+  }
+  async function fetchWater(manual=false){
+    if(busy)return;busy=true;if(manual)renderLoading();
+    try{
+      let data;let directError='';
+      try{data=await fetchDirect();}
+      catch(e){directError=e?.message||String(e);console.warn('[MEKONG WATER] direct API failed:',directError);data=await fetchEdge();}
+      render(data);const sync=$('sync');if(sync)sync.textContent='● น้ำโขง: '+new Date(data.fetched_at||Date.now()).toLocaleTimeString('th-TH');
+    }catch(e){console.error('[MEKONG WATER]',e);renderError(e?.message||String(e));}
+    finally{busy=false;}
+  }
+  window.mdhFetchMekongWater=fetchWater;
+  function start(){if(!$('waterList'))return;clearInterval(timer);fetchWater(true);timer=setInterval(()=>fetchWater(false),5*60*1000);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,800),{once:true});else setTimeout(start,800);
 })();
