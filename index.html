@@ -2,12 +2,52 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ISOC MDH72 COMMAND CENTER — AUDITED</title>
-<meta http-equiv="refresh" content="0;url=./ISOC_MDH72_COMMAND_CENTER_AUDITED.html">
-<script>location.replace('./ISOC_MDH72_COMMAND_CENTER_AUDITED.html');</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#061827">
+<title>ISOC MDH72 COMMAND CENTER</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#061827;overflow:hidden}
+iframe{display:block;width:100%;height:100%;border:0}
+</style>
 </head>
 <body>
-กำลังเปิด ISOC MDH72 COMMAND CENTER...
+<iframe id="app" src="./ISOC_MDH72_COMMAND_CENTER_V2_REPORT_ADMIN-1.html?v=20260909" title="ISOC MDH72 COMMAND CENTER"></iframe>
+<script>
+'use strict';
+const frame=document.getElementById('app');
+const scripts=[
+  './mdh72-runtime-hardening.js?v=20260909',
+  './mdh72-mekong-water.js?v=20260909',
+  './mdh72-data-integrity.js?v=20260909'
+];
+const installed=new Set();
+function loadScriptOnce(doc,src){
+  const key=src.split('?')[0];
+  if(installed.has(key))return;
+  const exists=[...doc.scripts].some(s=>{
+    const value=s.getAttribute('src')||'';
+    return value.split('?')[0]===key;
+  });
+  if(exists){installed.add(key);return;}
+  const s=doc.createElement('script');
+  s.src=src;
+  s.async=false;
+  s.dataset.mdhInjected='1';
+  s.onload=()=>installed.add(key);
+  doc.head.appendChild(s);
+}
+function install(){
+  try{
+    const doc=frame.contentDocument;
+    if(!doc||!doc.head)return;
+    scripts.forEach(src=>loadScriptOnce(doc,src));
+    frame.dataset.mdhScriptsInstalled='1';
+  }catch(error){
+    console.error('[MDH72 LAUNCHER] script installation failed',error);
+  }
+}
+frame.addEventListener('load',install);
+install();
+</script>
 </body>
 </html>
