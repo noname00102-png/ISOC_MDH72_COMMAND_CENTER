@@ -1,1 +1,43 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ISOC MDH72 COMMAND CENTER — AUDITED</title><style>html,body{margin:0;width:100%;height:100%;background:#061827}iframe{border:0;width:100%;height:100%;display:block}</style></head><body><iframe id="app" src="./ISOC_MDH72_COMMAND_CENTER_V2_REPORT_ADMIN-1.html" title="ISOC MDH72 COMMAND CENTER"></iframe><script>const f=document.getElementById('app');f.addEventListener('load',()=>{try{const d=f.contentDocument;const a=d.createElement('script');a.src='./mdh72-runtime-hardening.js';d.head.appendChild(a);const w=d.createElement('script');w.src='./mdh72-mekong-water.js';d.head.appendChild(w);const i=d.createElement('script');i.src='./mdh72-data-integrity.js';d.head.appendChild(i)}catch(e){console.error('[AUDITED LAUNCHER]',e)}})</script></body></html>
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ISOC MDH72 COMMAND CENTER — AUDITED</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#061827}
+iframe{border:0;width:100%;height:100%;display:block}
+</style>
+</head>
+<body>
+<iframe id="app" src="./ISOC_MDH72_COMMAND_CENTER_V2_REPORT_ADMIN-1.html" title="ISOC MDH72 COMMAND CENTER"></iframe>
+<script>
+'use strict';
+const frame=document.getElementById('app');
+const scripts=[
+  './mdh72-runtime-hardening.js?v=20260909',
+  './mdh72-mekong-water.js?v=20260909',
+  './mdh72-data-integrity.js?v=20260909'
+];
+function loadScriptOnce(doc,src){
+  const clean=src.split('?')[0];
+  if([...doc.scripts].some(s=>(s.src||'').split('?')[0].endsWith(clean.replace('./','/'))||s.getAttribute('src')===src))return;
+  const s=doc.createElement('script');
+  s.src=src;
+  s.async=false;
+  s.dataset.mdhInjected='1';
+  doc.head.appendChild(s);
+}
+function install(){
+  try{
+    const doc=frame.contentDocument;
+    if(!doc||!doc.head)return;
+    scripts.forEach(src=>loadScriptOnce(doc,src));
+    frame.dataset.mdhScriptsInstalled='1';
+  }catch(error){console.error('[AUDITED LAUNCHER] script installation failed',error)}
+}
+frame.addEventListener('load',install,{once:false});
+if(frame.contentDocument?.readyState==='complete')install();
+</script>
+</body>
+</html>
