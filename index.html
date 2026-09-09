@@ -18,7 +18,8 @@ const frame=document.getElementById('app');
 const scripts=[
   './mdh72-runtime-hardening.js?v=20260909',
   './mdh72-mekong-water.js?v=20260909',
-  './mdh72-data-integrity.js?v=20260909'
+  './mdh72-data-integrity.js?v=20260909',
+  './mdh72-weather-history-sidebar.js?v=20260909'
 ];
 const installed=new Set();
 function loadScriptOnce(doc,src){
@@ -34,6 +35,7 @@ function loadScriptOnce(doc,src){
   s.async=false;
   s.dataset.mdhInjected='1';
   s.onload=()=>installed.add(key);
+  s.onerror=error=>console.error('[MDH72 LAUNCHER] failed to load',src,error);
   doc.head.appendChild(s);
 }
 function install(){
