@@ -26,7 +26,8 @@ const scripts=[
  './mdh72-production-hardening.js?v=20260910-5',
  './mdh72-production-fixes.js?v=20260910-5',
  './mdh72-production-integration.js?v=20260910-2',
- './mdh72-threat-sidebar.js?v=20260910-2'
+ './mdh72-threat-sidebar.js?v=20260910-2',
+ './mdh72-threat-click-results.js?v=20260910-1'
 ];
 const installed=new Set();
 function loadScriptOnce(doc,src){const key=src.split('?')[0];if(installed.has(key))return;const exists=[...doc.scripts].some(s=>(s.getAttribute('src')||'').split('?')[0]===key);if(exists){installed.add(key);return}const s=doc.createElement('script');s.src=src;s.async=false;s.onload=()=>installed.add(key);s.onerror=e=>console.error('[MDH72 LAUNCHER] failed',src,e);doc.head.appendChild(s)}
