@@ -1,1 +1,0 @@
-(()=>{const x=document.createElement('aside');x.id='mdh72Sidebar';x.textContent='ISOC MDH72';document.body.prepend(x)})();
