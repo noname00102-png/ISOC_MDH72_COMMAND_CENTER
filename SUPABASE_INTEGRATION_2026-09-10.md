@@ -1,54 +1,71 @@
 # ISOC MDH72 COMMAND CENTER — Supabase Integration
 
-วันที่ตรวจสอบ: 10 ก.ย. 2569
+วันที่ตรวจสอบ/ปรับปรุง: 11 ก.ย. 2569
 
 ## Source
-ใช้ไฟล์ที่ผู้ใช้อัปโหลด `ISOC_MDH72_COMMAND_CENTER_REPORT_PRINT_REPORT(1).html` เป็นฐานสำหรับตรวจสอบสัญญา frontend/backend ก่อนนำเข้าระบบ GitHub
+ใช้ไฟล์ `ISOC_MDH72_COMMAND_CENTER_FINAL_CLEANED_REVIEWED_2026-09-11_REALTIME_TESTED.html` เป็นฐานตรวจสอบ frontend/backend contract ก่อนเชื่อมต่อ production
 
 ## GitHub
 Repository: `noname00102-png/ISOC_MDH72_COMMAND_CENTER`
 Branch: `main`
 Dashboard entry: `index.html`
-Application currently launched by `index.html`: `ISOC_MDH72_COMMAND_CENTER_V2_REPORT_ADMIN-1.html`
 
 ## Supabase
 Project ref: `riuebseoczwwifxezcwj`
 Project URL: `https://riuebseoczwwifxezcwj.supabase.co`
+Region: `ap-northeast-1`
+Status: `ACTIVE_HEALTHY`
 
-Verified public schema:
+Verified application tables:
 - `profiles`
 - `threats`
 - `threat_images`
 - `audit_logs`
-- `system_settings`
 - `weather_forecast_history`
 
-Verified Storage bucket:
+Verified Storage bucket contract from the repository integration audit:
 - `threat-images` (private)
 - maximum image size: 5 MB
 - allowed MIME types: JPEG, PNG, WebP
 
-## Frontend contract confirmed from uploaded source
+## Frontend contract
 - Supabase JS v2 is loaded.
-- Supabase client uses project ref `riuebseoczwwifxezcwj`.
+- Supabase client points to the verified project.
+- Client uses a publishable key, not a service-role/secret key.
 - Authentication uses `signInWithPassword`.
 - User role is resolved from `profiles`.
 - Threat data uses `public.threats`.
 - Threat images use Supabase Storage and `public.threat_images`.
-- Audit logging is wired to `public.audit_logs` when an authenticated session exists.
-- Realtime diagnostic code subscribes to `public.threats`.
+- Audit logging writes to `public.audit_logs` when an authenticated session exists.
+- Realtime diagnostics subscribe to `public.threats`.
 
-## Important schema alignment
-The verified database uses `subdistrict` rather than a `tambon` column on `public.threats`. New write paths must send the selected tambon value to `subdistrict` and must not insert an unknown `tambon` column.
+## Schema alignment
+`public.threats` uses `subdistrict`; there is no verified `tambon` column. New write paths must send the selected tambon value to `subdistrict`.
 
-## Security status
-RLS is enabled on the verified application tables. Authenticated users have role-gated write access to threats/images, while public read access is restricted by the `visibility` value where applicable.
+## Production RLS hardening — 11 Sep 2026
+Applied migration:
+- `SUPABASE_RLS_HARDENING_2026-09-11.sql`
 
-Supabase security advisor currently reports two WARN findings:
-1. `public.is_admin()` is SECURITY DEFINER and executable by the authenticated role.
-2. Leaked-password protection is disabled in Auth settings.
+The migration:
+- limits anonymous threat reads to `visibility='public'`;
+- permits authenticated operational reads;
+- restricts threat creation to admin/officer roles and binds `created_by` to `auth.uid()`;
+- restricts officer updates to their own threats while allowing admins to edit all threats;
+- restricts threat deletion to admins;
+- protects threat image metadata by creator/admin ownership;
+- limits audit-log reads to admins and audit inserts to the acting user;
+- keeps weather history browser-readable;
+- removes legacy broader policies so the new role model is authoritative;
+- uses a private `current_profile_role()` helper to avoid recursive profile RLS checks.
 
-These are recorded for the next hardening pass and were not changed blindly because they affect authorization behavior.
+Verification after migration:
+- production migration completed successfully;
+- verified application tables remain populated;
+- production database contains 30 RLS policies across the five verified application tables;
+- current `profiles` data includes the configured admin profile.
 
-## Deployment note
-The repository is GitHub-connected and the application already references the verified Supabase project. Live browser authentication, Storage upload, and Realtime behavior still require an actual browser session for end-to-end verification; static/source and database-contract checks were performed before integration.
+## Remaining end-to-end verification
+A real browser session is still required to validate the complete client path: login, profile resolution, threat insert/update/delete, private Storage upload + signed URL, and Realtime event delivery. Static/source checks and direct production database checks are not a substitute for that browser test.
+
+## Security note
+Do not place a Supabase secret/service-role key in this repository or any browser-delivered HTML. Client code should use the publishable key and rely on RLS for authorization.
