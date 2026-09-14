@@ -12,9 +12,47 @@ window.mdh72Severity=row=>meta(row?.threat_level);
 window.MDH72_THREAT_LEVELS=LEVELS.map(x=>x.label);
 window.getThreatColor=v=>meta(v).color;
 window.norm=window.norm||((v)=>String(v??'').trim().toLowerCase());
-function normalizeRows(){if(!Array.isArray(window.rows))return;window.rows=window.rows.map(r=>({...r,threat_level:normalize(r.threat_level)}))}
-async function syncFromSupabase(){if(!window.sb?.from)return false;try{const{data,error}=await window.sb.from('threats').select('*').order('created_at',{ascending:false});if(error)throw error;window.rows=(data||[]).map(r=>({...r,threat_level:normalize(r.threat_level)}));try{if(typeof window.updateKpis==='function')await window.updateKpis()}catch(_){}try{if(typeof window.renderLatest==='function')window.renderLatest()}catch(_){}try{if(typeof window.renderEvents==='function')window.renderEvents()}catch(_){}try{if(typeof window.renderThreatHistory==='function')window.renderThreatHistory()}catch(_){}try{if(typeof window.mdhApplyMapThreatColors==='function')window.mdhApplyMapThreatColors()}catch(_){}return true}catch(e){console.warn('[MDH CANONICAL SUPABASE SYNC]',e);return false}}
-function textCanonicalize(root=document){const replacements=[['🟢 ภัยคุกคามควบคุมได้','ปกติ'],['🟡 ภัยคุกคามเฝ้าระวัง','เฝ้าระวัง'],['🟠 ภัยคุกคามควบคุมได้ยาก','แจ้งเตือน'],['🔴 ภัยคุกคามควบคุมไม่ได้','วิกฤต'],['🔴 ภัยคุกคามวิกฤต','วิกฤต']];const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];while(w.nextNode())nodes.push(w.currentNode);nodes.forEach(n=>{let s=n.nodeValue;replacements.forEach(([a,b])=>{if(s.includes(a))s=s.split(a).join(b)});if(s!==n.nodeValue)n.nodeValue=s})}
-function boot(){normalizeRows();textCanonicalize();syncFromSupabase();setTimeout(syncFromSupabase,1500);setTimeout(syncFromSupabase,4000);if(window.sb?.channel){try{window.mdh72CanonicalChannel?.unsubscribe?.();window.mdh72CanonicalChannel=window.sb.channel('mdh72-canonical-level-sync').on('postgres_changes',{event:'*',schema:'public',table:'threats'},()=>syncFromSupabase()).subscribe()}catch(e){console.warn('[MDH CANONICAL REALTIME]',e)}}if(window.MutationObserver){const ob=new MutationObserver(m=>{if(m.some(x=>x.addedNodes?.length))textCanonicalize()});ob.observe(document.body,{childList:true,subtree:true})}}
+
+// IMPORTANT: this production patch is a presentation/runtime hardening layer.
+// It must NOT issue a second unbounded Supabase query, because the canonical
+// dashboard loader already handles pagination, visibility/RLS and ordering.
+function normalizeRows(){
+  if(!Array.isArray(window.rows))return;
+  window.rows=window.rows.map(r=>({...r,threat_level:normalize(r.threat_level)}));
+}
+
+function refreshPresentation(){
+  try{if(typeof window.updateKpis==='function')window.updateKpis()}catch(e){console.warn('[MDH KPI HARDENING]',e)}
+  try{if(typeof window.renderLatest==='function')window.renderLatest()}catch(e){console.warn('[MDH LATEST HARDENING]',e)}
+  try{if(typeof window.renderEvents==='function')window.renderEvents()}catch(e){console.warn('[MDH EVENTS HARDENING]',e)}
+  try{if(typeof window.renderThreatHistory==='function')window.renderThreatHistory()}catch(e){console.warn('[MDH HISTORY HARDENING]',e)}
+  try{if(typeof window.mdhApplyMapThreatColors==='function')window.mdhApplyMapThreatColors()}catch(e){console.warn('[MDH MAP HARDENING]',e)}
+}
+
+function textCanonicalize(root=document){
+  const replacements=[['🟢 ภัยคุกคามควบคุมได้','ปกติ'],['🟡 ภัยคุกคามเฝ้าระวัง','เฝ้าระวัง'],['🟠 ภัยคุกคามควบคุมได้ยาก','แจ้งเตือน'],['🔴 ภัยคุกคามควบคุมไม่ได้','วิกฤต'],['🔴 ภัยคุกคามวิกฤต','วิกฤต']];
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];
+  while(w.nextNode())nodes.push(w.currentNode);
+  nodes.forEach(n=>{let s=n.nodeValue;replacements.forEach(([a,b])=>{if(s.includes(a))s=s.split(a).join(b)});if(s!==n.nodeValue)n.nodeValue=s});
+}
+
+function boot(){
+  normalizeRows();
+  refreshPresentation();
+  textCanonicalize();
+  // Do not create another Supabase channel here. The dashboard's canonical
+  // data loader owns refresh/realtime so there is a single source of truth.
+  if(window.MDH72_PRODUCTION_HARDENING_AUDIT){
+    console.warn('[MDH PRODUCTION HARDENING] duplicate-loader guard active');
+  }
+  window.MDH72_PRODUCTION_HARDENING_AUDIT={
+    active:true,
+    canonicalDataLoader:'dashboard',
+    duplicateSupabaseQuery:false,
+    duplicateRealtimeChannel:false,
+    normalizedRows:Array.isArray(window.rows)?window.rows.length:0
+  };
+}
+
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
