@@ -29,13 +29,6 @@ function refreshPresentation(){
   try{if(typeof window.mdhApplyMapThreatColors==='function')window.mdhApplyMapThreatColors()}catch(e){console.warn('[MDH MAP HARDENING]',e)}
 }
 
-function textCanonicalize(root=document){
-  const replacements=[['🟢 ภัยคุกคามควบคุมได้','ปกติ'],['🟡 ภัยคุกคามเฝ้าระวัง','เฝ้าระวัง'],['🟠 ภัยคุกคามควบคุมได้ยาก','แจ้งเตือน'],['🔴 ภัยคุกคามควบคุมไม่ได้','วิกฤต'],['🔴 ภัยคุกคามวิกฤต','วิกฤต']];
-  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];
-  while(w.nextNode())nodes.push(w.currentNode);
-  nodes.forEach(n=>{let s=n.nodeValue;replacements.forEach(([a,b])=>{if(s.includes(a))s=s.split(a).join(b)});if(s!==n.nodeValue)n.nodeValue=s});
-}
-
 function installFullScreenMap(){
   if(document.getElementById('mdh72-map-fullscreen-fix'))return;
   const style=document.createElement('style');
@@ -87,10 +80,7 @@ function boot(){
   installFullScreenMap();
   normalizeRows();
   refreshPresentation();
-  textCanonicalize();
   refreshMapSize();
-  // Do not create another Supabase channel here. The dashboard's canonical
-  // data loader owns refresh/realtime so there is a single source of truth.
   if(window.MDH72_PRODUCTION_HARDENING_AUDIT){
     console.warn('[MDH PRODUCTION HARDENING] duplicate-loader guard active');
   }
