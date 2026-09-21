@@ -36,10 +36,59 @@ function textCanonicalize(root=document){
   nodes.forEach(n=>{let s=n.nodeValue;replacements.forEach(([a,b])=>{if(s.includes(a))s=s.split(a).join(b)});if(s!==n.nodeValue)n.nodeValue=s});
 }
 
+function installFullScreenMap(){
+  if(document.getElementById('mdh72-map-fullscreen-fix'))return;
+  const style=document.createElement('style');
+  style.id='mdh72-map-fullscreen-fix';
+  style.textContent=`
+/* MDH72 MAP FULL SCREEN — only changes the map container sizing. */
+html,body{min-height:100%;}
+.main-grid{width:100%!important;min-width:0!important;}
+.main-grid>.map-card{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:none!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  flex-direction:column!important;
+  grid-column:1 / -1!important;
+}
+.main-grid>.map-card #map{
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  flex:1 1 auto!important;
+  box-sizing:border-box!important;
+}
+.main-grid>.map-card .map-head{flex:0 0 auto!important;}
+.main-grid>.map-card>div:last-child{flex:0 0 auto!important;}
+@media(max-width:700px){
+  .main-grid>.map-card{height:100dvh!important;min-height:100dvh!important;}
+}
+`;
+  (document.head||document.documentElement).appendChild(style);
+  window.MDH72_MAP_FULL_SCREEN_FIX=true;
+}
+
+function refreshMapSize(){
+  try{
+    if(window.map&&typeof window.map.invalidateSize==='function'){
+      requestAnimationFrame(()=>window.map.invalidateSize({pan:false,animate:false}));
+      setTimeout(()=>window.map.invalidateSize({pan:false,animate:false}),250);
+      setTimeout(()=>window.map.invalidateSize({pan:false,animate:false}),800);
+    }
+  }catch(e){console.warn('[MDH MAP SIZE]',e)}
+}
+
 function boot(){
+  installFullScreenMap();
   normalizeRows();
   refreshPresentation();
   textCanonicalize();
+  refreshMapSize();
   // Do not create another Supabase channel here. The dashboard's canonical
   // data loader owns refresh/realtime so there is a single source of truth.
   if(window.MDH72_PRODUCTION_HARDENING_AUDIT){
@@ -50,7 +99,8 @@ function boot(){
     canonicalDataLoader:'dashboard',
     duplicateSupabaseQuery:false,
     duplicateRealtimeChannel:false,
-    normalizedRows:Array.isArray(window.rows)?window.rows.length:0
+    normalizedRows:Array.isArray(window.rows)?window.rows.length:0,
+    mapFullScreen:true
   };
 }
 
