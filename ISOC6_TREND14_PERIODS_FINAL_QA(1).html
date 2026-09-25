@@ -8976,9 +8976,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
    * AUTHORITATIVE THREAT MENU RUNTIME
    * Rule: the displayed count/list must come from public.threats.threat_type.
    * Never infer a threat type from title/description.
-   * Verified DB values on 2026-09-13:
-   *   drug        = ภัยจากยาเสพติด (4 rows)
-   *   immigration = ภัยจากการหลบหนีเข้าเมือง (2 rows)
+   * Verified DB values on 2026-09-25 against public.threats:
+   *   drug        = ภัยจากยาเสพติด (2 rows) + ยาเสพติด (5 rows)
+   *   immigration = ผู้หลบหนีเข้าเมือง/ลักลอบข้ามแดน (2 rows)
+   *   total       = 17 rows across 9 threat_type values
    */
   const GROUPS={
     emerging:{title:'ภัยคุกคามรูปแบบใหม่',types:[
