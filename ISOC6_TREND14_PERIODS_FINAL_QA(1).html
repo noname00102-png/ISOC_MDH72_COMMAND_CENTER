@@ -2894,7 +2894,7 @@ button,input,select,textarea{max-width:100%}
 #mdh72EnvironmentPanel .mdh72-env-mekong-card[hidden]{display:none!important;}
 </style>
 
-<meta name="mdh72-trend-version" content="V17 Traffic Light + Spatial Overlay + Temporal + Link Analysis">
+<meta name="mdh72-trend-version" content="V18 Traffic Light 70/90 + Spatial Overlay + Temporal + Link Analysis">
 <style id="mdh72-trend14-level-color-css">.mdh72-trend14-percent-track{position:relative;overflow:hidden}.mdh72-trend14-level-bar{display:block;height:100%;min-height:12px;border-radius:inherit}.mdh72-trend14-percent-track.is-empty{background:transparent;border:1px dashed rgba(148,163,184,.35)}.mdh72-trend14-level-arrow{position:absolute;right:2px;top:50%;transform:translateY(-50%);font-weight:900;font-size:14px;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7)}</style></head>
 <body>
 
@@ -14072,7 +14072,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       <div id="mdh72Trend14Summary" class="mdh72-trend14-summary"></div>
       <div id="mdh72Trend14Comparison" class="mdh72-trend14-comparison"></div>
       <div id="mdh72Trend14PercentChart" class="mdh72-trend14-percent-chart"></div>
-      <div id="mdh72Trend14Legend" class="mdh72-trend14-legend"><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot level1"></i>ระดับ 1 &lt; 60%</span><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot level2"></i>ระดับ 2 60–89.9%</span><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot level3"></i>ระดับ 3 ≥ 90%</span><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot new"></i>เกิดใหม่</span></div>
+      <div id="mdh72Trend14Legend" class="mdh72-trend14-legend"><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot level1"></i>ระดับ 1 &lt; 70%</span><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot level2"></i>ระดับ 2 70–89.9%</span><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot level3"></i>ระดับ 3 ≥ 90%</span><span class="mdh72-trend14-legend-item"><i class="mdh72-trend14-legend-dot new"></i>เกิดใหม่</span></div>
       <div id="mdh72Trend14Aggregate"></div>
       <div id="mdh72Trend14Chart" class="mdh72-trend14-chart"></div>
       <div id="mdh72Trend14Detail" class="mdh72-trend14-detail" hidden></div>
@@ -14119,7 +14119,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
  function dateOf(r){const v=r?.event_datetime||r?.occurred_at||r?.event_date||r?.incident_date||r?.date||r?.created_at||r?.timestamp;const d=v?new Date(v):null;return d&&!Number.isNaN(d.getTime())?d:null}
  function threatTypeMatches(r,aliases){const v=norm(r?.threat_type??'');return !!v&&aliases.some(a=>{const x=norm(a);return v===x||v.includes(x)||x.includes(v)})}
  function countFor(rs){return TAXONOMY.map(([key,label,aliases])=>({key,label,aliases,count:rs.filter(r=>threatTypeMatches(r,aliases)).length}))}
- function levelForPercent(p){const n=Number(p);if(!Number.isFinite(n))return{key:'none',color:'transparent',label:'ไม่มีค่า Trend'};if(n<0)return{key:'level1',color:'#22c55e',label:'ระดับ 1'};if(n<60)return{key:'level1',color:'#22c55e',label:'ระดับ 1'};if(n<90)return{key:'level2',color:'#f97316',label:'ระดับ 2'};return{key:'level3',color:'#ef4444',label:'ระดับ 3'}}
+ function levelForPercent(p){const n=Number(p);if(!Number.isFinite(n))return{key:'none',color:'transparent',label:'ไม่มีค่า Trend'};if(n<0)return{key:'level1',color:'#22c55e',label:'ระดับ 1'};if(n<70)return{key:'level1',color:'#22c55e',label:'ระดับ 1'};if(n<90)return{key:'level2',color:'#f97316',label:'ระดับ 2'};return{key:'level3',color:'#ef4444',label:'ระดับ 3'}}
  function series7d(meta,endDate){const aliases=Array.isArray(meta)?meta[2]:meta?.aliases||[];const end=new Date(endDate||Date.now());const dates=[];for(let i=6;i>=0;i--){const d=new Date(end);d.setDate(d.getDate()-i);dates.push(dayKey(d))}const all=rows();return dates.map(k=>all.filter(r=>dayKey(dateOf(r))===k&&threatTypeMatches(r,aliases)).length)}
  function sparkline(values,color){const w=120,h=36,p=4,max=Math.max(1,...values),min=Math.min(0,...values);const span=Math.max(1,max-min),pts=values.map((v,i)=>{const x=p+i*((w-p*2)/Math.max(1,values.length-1));const y=h-p-((v-min)/span)*(h-p*2);return [x,y]});const path=pts.map((pnt,i)=>(i?'L':'M')+pnt[0].toFixed(1)+' '+pnt[1].toFixed(1)).join(' ');return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="แนวโน้ม 7 วัน"><line class="grid" x1="4" y1="31" x2="116" y2="31"></line><path class="line" d="${path}" stroke="${color}"></path>${pts.map(pnt=>`<circle class="dot" cx="${pnt[0].toFixed(1)}" cy="${pnt[1].toFixed(1)}" r="2.3" fill="${color}"></circle>`).join('')}</svg>`}
  function renderDetail(key){
