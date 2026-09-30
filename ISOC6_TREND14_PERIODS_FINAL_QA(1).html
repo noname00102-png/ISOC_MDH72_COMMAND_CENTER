@@ -12869,15 +12869,39 @@ setInterval(()=>{if(document.visibilityState!=='hidden'){loadAudit().then(()=>{i
       updateRow(rows,'thaiwaterForecast',realtimeWeatherR?.state||'FAILED',realtimeWeatherR?.detail||'ไม่ทราบผลการตรวจ ThaiWater forecast API',token);
 
       const weatherP=(async()=>{
+        const supabaseUrl=(window.SUPABASE_URL||'').replace(/\/$/,'');
+        const syncUrl=supabaseUrl+'/functions/v1/sync-mukdahan-weather-forecast-history?health_check='+Date.now();
         const weatherUrl='https://api-v3.thaiwater.net/api/v1/thaiwater30/provinces/wrfrom_rainforcase7d?province_code=49';
         try{
-          const r=await timeoutFetch(weatherUrl,{method:'GET',headers:{Accept:'application/json'}},8000);
-          const text=await r.text();let data=null;try{data=JSON.parse(text)}catch(_){throw new Error('ThaiWater ส่งข้อมูลไม่ใช่ JSON')}
-          if(!r.ok||!Array.isArray(data?.data)||!data.data.length)throw new Error(`ThaiWater HTTP ${r.status} หรือไม่มีข้อมูลคาดการณ์ฝน`);
-          const valid=data.data.filter(x=>x?.province_name==='มุกดาหาร'&&x?.forecast_datetime&&Number.isFinite(Number(x?.rainfall)));
-          if(!valid.length)throw new Error('ได้รับ Response แต่ไม่พบข้อมูลคาดการณ์ฝนของจังหวัดมุกดาหาร');
-          return {state:'SUCCESS',detail:`HTTP ${r.status} • ThaiWater forecast • ยืนยันข้อมูล ${valid.length} รายการ`};
-        }catch(e){return {state:'FAILED',detail:e?.name==='AbortError'?'หมดเวลาตรวจสอบ 8 วินาที':e?.message||String(e)}}
+          if(!supabaseUrl)throw new Error('ไม่มี SUPABASE_URL สำหรับเรียก Sync Function');
+          const r=await timeoutFetch(syncUrl,{method:'GET',headers:{apikey:window.SUPABASE_KEY||'',Accept:'application/json'}},8000);
+          const text=await r.text();let data=null;try{data=JSON.parse(text)}catch(_){throw new Error(`Sync Function ส่งข้อมูลไม่ใช่ JSON (HTTP ${r.status})`)}
+          if(!r.ok||data?.ok!==true)throw new Error(data?.message||data?.error||`Sync Function HTTP ${r.status}`);
+          if(!window.sb?.from)throw new Error('Sync สำเร็จแต่ไม่พบ Supabase Client สำหรับยืนยันข้อมูล');
+          const q=await window.sb.from('mukdahan_weather_forecast_history')
+            .select('forecast_datetime,forecast_day,province_code,province_name,rainfall,rainfall_text,fetched_at')
+            .eq('province_code','49')
+            .eq('province_name','มุกดาหาร')
+            .order('forecast_datetime',{ascending:true})
+            .order('fetched_at',{ascending:false})
+            .limit(30);
+          if(q.error)throw q.error;
+          const valid=(Array.isArray(q.data)?q.data:[]).filter(x=>x?.forecast_datetime&&Number.isFinite(Number(x?.rainfall)));
+          if(!valid.length)throw new Error('Sync สำเร็จแต่ไม่พบข้อมูลคาดการณ์ฝนมุกดาหารใน Supabase');
+          return {state:'SUCCESS',detail:`HTTP ${r.status} • Sync ThaiWater สำเร็จ • ยืนยันข้อมูล ${valid.length} รายการจาก Supabase`};
+        }catch(e){
+          // Fallback: verify the public ThaiWater endpoint directly if the sync bridge is unavailable.
+          try{
+            const r=await timeoutFetch(weatherUrl,{method:'GET',headers:{Accept:'application/json'}},8000);
+            const text=await r.text();let body=null;try{body=JSON.parse(text)}catch(_){throw new Error(`ThaiWater ส่งข้อมูลไม่ใช่ JSON (HTTP ${r.status})`)}
+            const rows=Array.isArray(body)?body:(Array.isArray(body?.data)?body.data:[]);
+            const valid=rows.filter(x=>x?.province_name==='มุกดาหาร'&&x?.forecast_datetime&&Number.isFinite(Number(x?.rainfall)));
+            if(!r.ok||!valid.length)throw new Error(`ThaiWater HTTP ${r.status} หรือไม่พบข้อมูลคาดการณ์ฝนมุกดาหาร`);
+            return {state:'SUCCESS',detail:`HTTP ${r.status} • ThaiWater API สำเร็จ • ยืนยันข้อมูล ${valid.length} รายการ`};
+          }catch(fallbackError){
+            return {state:'FAILED',detail:e?.name==='AbortError'?'หมดเวลาตรวจสอบ 8 วินาที':e?.message||String(e)+` • Fallback: ${fallbackError?.message||fallbackError}`};
+          }
+        }
       })();
       const waterP=(async()=>{
         const waterUrl=(window.SUPABASE_URL||'')+'/functions/v1/get-mekong-mukdahan-water?health_check='+Date.now();
