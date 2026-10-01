@@ -6926,8 +6926,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   const API_URL='https://api-v3.thaiwater.net/api/v1/thaiwater30/provinces/wrfrom_rainforcase7d?province_code=49';
   const SOURCE_PAGE='https://mukdahan.thaiwater.net/forecast/rainfall';
   const PROVINCE='มุกดาหาร';
+  const PROVINCE_CODE='49';
   const REFRESH_MS=10*60*1000;
-  let timer=null, requestInFlight=false, abortController=null, lastSuccessfulFetchAt=null;
+  const SYNC_URL=()=>((window.SUPABASE_URL||'').replace(/\/$/,''))+'/functions/v1/sync-mukdahan-weather-forecast-history';
+  let timer=null, requestInFlight=false, abortController=null, lastSuccessfulFetchAt=null, lastResult=null, loadPromise=null;
 
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6958,6 +6960,18 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       if(seen.has(k))return false;seen.add(k);return true;
     }).slice(0,7);
   }
+  function validateStoredRows(rows){
+    const raw=Array.isArray(rows)?rows:[];
+    const valid=raw.filter(x=>x?.forecast_datetime && String(x?.province_code??PROVINCE_CODE)===PROVINCE_CODE && (x?.province_name||PROVINCE)==PROVINCE && n(x?.rainfall)!==null);
+    if(!valid.length)throw new Error('Supabase Sync สำเร็จ แต่ไม่พบ snapshot คาดการณ์ฝนมุกดาหารที่ยืนยันได้');
+    const latestCaptured=valid.map(x=>x?.fetched_at).filter(Boolean).sort().at(-1)||null;
+    const sameSnapshot=latestCaptured?valid.filter(x=>String(x.fetched_at||'')===String(latestCaptured)):valid;
+    const seen=new Set();
+    return sameSnapshot.slice().sort((a,b)=>new Date(a?.forecast_datetime||0)-new Date(b?.forecast_datetime||0)).filter(x=>{
+      const k=String(x.forecast_datetime).slice(0,19)+'|'+String(x.forecast_day??'');
+      if(seen.has(k))return false;seen.add(k);return true;
+    }).slice(0,7);
+  }
   function rainIcon(text){
     const s=String(text||'').toLowerCase();
     if(s.includes('หนักมาก'))return '🌧️';
@@ -6967,7 +6981,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if(s.includes('ไม่มีฝน'))return '☁️';
     return '🌦️';
   }
-  function render(rows,fetchedAt){
+  function render(rows,fetchedAt,sourceLabel='ThaiWater • API จริง'){
     const p=$('mdhWeatherPanel');if(!p)return;
     const todayKey=String(rows[0]?.forecast_datetime||'').slice(0,10);
     const today=rows[0]||{};
@@ -6997,39 +7011,93 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         <div class="mdh-weather-day-rain">วันคาดการณ์ ${esc(d.forecast_day??'—')}</div>
       </article>`;
     }).join('')}</div>
-    <div class="mdh-weather-meta"><span>อัปเดต ${esc(fmtStamp(fetchedAt))}</span><span>✓ ThaiWater • API จริง</span></div>`;
+    <div class="mdh-weather-meta"><span>อัปเดต ${esc(fmtStamp(fetchedAt))}</span><span>✓ ${esc(sourceLabel)}</span></div>`;
   }
-  async function load(force=false){
-    if(requestInFlight)return;
-    requestInFlight=true;
+  async function fetchDirect(){
     abortController=new AbortController();
     const timeout=setTimeout(()=>abortController?.abort(),15000);
-    setStatus('กำลังดึงข้อมูลคาดการณ์ฝน 7 วันจาก ThaiWater...','');
     try{
-      const u=API_URL+(force?`&t=${Date.now()}`:'');
+      const u=API_URL;
       const r=await fetch(u,{method:'GET',mode:'cors',cache:'no-store',headers:{Accept:'application/json'},signal:abortController.signal});
       const text=await r.text();
-      let body;try{body=JSON.parse(text)}catch{throw new Error(`ThaiWater ส่งข้อมูลที่ไม่ใช่ JSON (HTTP ${r.status})`)}
+      let body;
+      try{body=JSON.parse(text)}catch{
+        const ct=r.headers.get('content-type')||'ไม่ระบุ';
+        throw new Error(`ThaiWater Response ไม่ใช่ JSON • HTTP ${r.status} • Content-Type ${ct}`);
+      }
       if(!r.ok)throw new Error(`ThaiWater HTTP ${r.status}`);
-      const rows=validatePayload({province:PROVINCE,data:body?.data});
-      lastSuccessfulFetchAt=new Date().toISOString();
-      render(rows,lastSuccessfulFetchAt);
-      setStatus(`● LIVE • ${PROVINCE} • ThaiWater • ${rows.length} วัน • รีเฟรชทุก 10 นาที`,'ok');
-    }catch(e){
-      const msg=e?.name==='AbortError'?'หมดเวลารอข้อมูล ThaiWater เกิน 15 วินาที':(e?.message||String(e));
-      setStatus('⚠ ไม่สามารถรับข้อมูลคาดการณ์ฝนจาก ThaiWater ได้','err');
-      const p=$('mdhWeatherPanel');
-      if(p)p.innerHTML=`<div class="mdh-weather-error">${esc(msg)}<br>ระบบจะไม่แสดงค่าประมาณหรือข้อมูลจากภาพ</div>`;
-      console.error('[MDH THAIWATER FORECAST REALTIME]',e);
+      return {rows:validatePayload(body),fetchedAt:new Date().toISOString(),sourceLabel:'ThaiWater • API จริง'};
     }finally{
-      clearTimeout(timeout);abortController=null;requestInFlight=false;
+      clearTimeout(timeout);abortController=null;
     }
+  }
+  async function fetchViaSupabaseSync(){
+    const url=SYNC_URL();
+    if(!window.sb||!url||url.includes('undefined'))throw new Error('ไม่พบ Supabase Client/URL สำหรับ ThaiWater Sync');
+    const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',headers:{apikey:window.SUPABASE_KEY||'',Accept:'application/json'}});
+    const text=await r.text();
+    let d;
+    try{d=JSON.parse(text)}catch{
+      throw new Error(`Supabase ThaiWater Sync Response ไม่ใช่ JSON • HTTP ${r.status}`);
+    }
+    if(!r.ok||d?.ok!==true)throw new Error(d?.message||d?.error||`ThaiWater Sync HTTP ${r.status}`);
+    const q=await window.sb.from('mukdahan_weather_forecast_history')
+      .select('forecast_datetime,forecast_day,province_code,province_name,rainfall,rainfall_text,fetched_at,source,source_url')
+      .eq('province_code',PROVINCE_CODE)
+      .order('fetched_at',{ascending:false})
+      .order('forecast_datetime',{ascending:true})
+      .limit(50);
+    if(q.error)throw q.error;
+    const rows=validateStoredRows(q.data||[]);
+    const fetchedAt=rows.map(x=>x.fetched_at).filter(Boolean).sort().at(-1)||d.fetched_at||new Date().toISOString();
+    return {rows,fetchedAt,sourceLabel:'ThaiWater • ผ่าน Supabase Sync (ข้อมูลจริง)'};
+  }
+  async function load(force=false){
+    if(loadPromise)return loadPromise;
+    loadPromise=(async()=>{
+      if(requestInFlight)return lastResult||{state:'FAILED',detail:'มีคำขอคาดการณ์ฝนกำลังทำงาน'};
+      requestInFlight=true;
+      setStatus('กำลังดึงข้อมูลคาดการณ์ฝน 7 วันจาก ThaiWater...','');
+      try{
+        let result;
+        try{
+          result=await fetchDirect();
+        }catch(directError){
+          console.warn('[MDH THAIWATER DIRECT]',directError);
+          result=await fetchViaSupabaseSync();
+        }
+        lastSuccessfulFetchAt=result.fetchedAt;
+        render(result.rows,result.fetchedAt,result.sourceLabel);
+        const viaSync=result.sourceLabel.includes('Supabase Sync');
+        const detail=viaSync
+          ? `ThaiWater forecast • ใช้ Supabase Sync เป็นทางผ่าน • ยืนยันข้อมูล ${result.rows.length} รายการ`
+          : `HTTP 200 • ThaiWater forecast • ยืนยันข้อมูล ${result.rows.length} รายการ`;
+        lastResult={state:'SUCCESS',detail,source:result.sourceLabel,rows:result.rows,fetchedAt:result.fetchedAt};
+        setStatus(`● LIVE • ${PROVINCE} • ${viaSync?'ThaiWater ผ่าน Supabase Sync':'ThaiWater API'} • ${result.rows.length} วัน • รีเฟรชทุก 10 นาที`,'ok');
+        return lastResult;
+      }catch(e){
+        const msg=e?.name==='AbortError'?'หมดเวลารอข้อมูล ThaiWater เกิน 15 วินาที':(e?.message||String(e));
+        lastResult={state:'FAILED',detail:msg};
+        setStatus('⚠ ไม่สามารถรับข้อมูลคาดการณ์ฝนจาก ThaiWater ได้','err');
+        const p=$('mdhWeatherPanel');
+        if(p)p.innerHTML=`<div class="mdh-weather-error">${esc(msg)}<br>ระบบจะไม่แสดงค่าประมาณหรือข้อมูลจากภาพ</div>`;
+        console.error('[MDH THAIWATER FORECAST REALTIME]',e);
+        return lastResult;
+      }finally{
+        requestInFlight=false;loadPromise=null;
+      }
+    })();
+    return loadPromise;
+  }
+  async function healthCheck(){
+    if(lastResult?.state==='SUCCESS')return lastResult;
+    if(lastResult?.state==='FAILED'&&!requestInFlight)return lastResult;
+    return load(false);
   }
   function start(){
     const btn=$('mdhWeatherRefresh');
     if(btn&&!btn.dataset.twForecastBound){btn.dataset.twForecastBound='1';btn.addEventListener('click',()=>load(true));}
-    const link=$('mdhWeatherStatus');
-    window.mdh72ThaiWaterForecast={load,apiUrl:API_URL,sourcePage:SOURCE_PAGE};
+    window.mdh72ThaiWaterForecast={load,healthCheck,apiUrl:API_URL,sourcePage:SOURCE_PAGE,getState:()=>lastResult};
     load();
     timer=setInterval(()=>{if(document.visibilityState!=='hidden')load()},REFRESH_MS);
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load()});
@@ -12829,7 +12897,16 @@ setInterval(()=>{if(document.visibilityState!=='hidden'){loadAudit().then(()=>{i
       const threatsP=sbQuery(()=>window.sb.from('threats').select('id').limit(1),8000,'Threats Data');
       const imagesP=sbQuery(()=>window.sb.from('threat_images').select('id').limit(1),8000,'Threat Images');
       const realtimeThreatsP=realtimeTest('threats',null,token);
-      const realtimeWeatherP=Promise.resolve({state:'SUCCESS',detail:'ใช้ ThaiWater forecast API โดยตรง ไม่มี dependency จาก weather_forecast_history'});
+      // ThaiWater health state must come from the same real request used by the forecast UI.
+      // Never mark the service SUCCESS without an actual validated response.
+      const realtimeWeatherP=(async()=>{
+        try{
+          if(window.mdh72ThaiWaterForecast?.healthCheck)return await window.mdh72ThaiWaterForecast.healthCheck();
+          throw new Error('ThaiWater forecast module ยังไม่พร้อมสำหรับการตรวจจริง');
+        }catch(e){
+          return {state:'FAILED',detail:e?.message||String(e)};
+        }
+      })();
 
       const apiR=await apiP.then(q=>({q}),e=>({e}));
       updateRow(rows,'api',apiR.e||apiR.q?.error?'FAILED':'SUCCESS',apiR.e?.message||apiR.q?.error?.message||'อ่าน public.threats สำเร็จ',token);
@@ -12868,17 +12945,8 @@ setInterval(()=>{if(document.visibilityState!=='hidden'){loadAudit().then(()=>{i
       updateRow(rows,'realtimeThreats',realtimeThreatsR?.state||'FAILED',realtimeThreatsR?.detail||'ไม่ทราบผลการตรวจ Realtime threats',token);
       updateRow(rows,'thaiwaterForecast',realtimeWeatherR?.state||'FAILED',realtimeWeatherR?.detail||'ไม่ทราบผลการตรวจ ThaiWater forecast API',token);
 
-      const weatherP=(async()=>{
-        const weatherUrl='https://api-v3.thaiwater.net/api/v1/thaiwater30/provinces/wrfrom_rainforcase7d?province_code=49';
-        try{
-          const r=await timeoutFetch(weatherUrl,{method:'GET',headers:{Accept:'application/json'}},8000);
-          const text=await r.text();let data=null;try{data=JSON.parse(text)}catch(_){throw new Error('ThaiWater ส่งข้อมูลไม่ใช่ JSON')}
-          if(!r.ok||!Array.isArray(data?.data)||!data.data.length)throw new Error(`ThaiWater HTTP ${r.status} หรือไม่มีข้อมูลคาดการณ์ฝน`);
-          const valid=data.data.filter(x=>x?.province_name==='มุกดาหาร'&&x?.forecast_datetime&&Number.isFinite(Number(x?.rainfall)));
-          if(!valid.length)throw new Error('ได้รับ Response แต่ไม่พบข้อมูลคาดการณ์ฝนของจังหวัดมุกดาหาร');
-          return {state:'SUCCESS',detail:`HTTP ${r.status} • ThaiWater forecast • ยืนยันข้อมูล ${valid.length} รายการ`};
-        }catch(e){return {state:'FAILED',detail:e?.name==='AbortError'?'หมดเวลาตรวจสอบ 8 วินาที':e?.message||String(e)}}
-      })();
+      // Reuse the exact validated forecast result above; do not issue a second, divergent ThaiWater request.
+      const weatherP=realtimeWeatherP;
       const waterP=(async()=>{
         const waterUrl=(window.SUPABASE_URL||'')+'/functions/v1/get-mekong-mukdahan-water?health_check='+Date.now();
         if(!window.SUPABASE_URL)return {state:'DISABLED',detail:'ไม่มี SUPABASE_URL สำหรับเรียก Edge Function'};
