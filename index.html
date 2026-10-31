@@ -1855,7 +1855,7 @@ html,body{width:100%;min-width:0;max-width:100%;}
 <aside class="side">
 <div class="brand">🏛️ ระบบบริหารแผนปฏิทิน<small>กำลังพล • รถ • โครงการ • งบ • น้ำมัน • ค่าเลี้ยงดู</small></div>
 <nav class="nav">
-<button class="active" data-page="dashboard">🏠 Dashboard</button><button data-page="calendar">🗓️ ปฏิทินแผนงาน</button><button data-page="dailyStatus">📅 สถานะประจำวัน</button><button data-page="personnel">👥 กำลังพล</button><button data-page="vehicles">🚙 รถ</button><button data-page="vehicleUsage">🚗 บันทึกการใช้รถ</button><button data-page="projects">🎯 โครงการ</button><button data-page="budget">💰 งบประมาณ</button><button data-page="fuel">⛽ น้ำมัน</button><button data-page="allowance">🍱 ค่าเลี้ยงดู</button><button data-page="reports">📊 รายงาน</button><button data-page="settings">⚙️ ตั้งค่า</button>
+<button class="active" data-page="dashboard">🏠 Dashboard</button><button data-page="calendar">🗓️ ปฏิทินแผนงาน</button><button data-page="dailyStatus">📅 สถานะประจำวัน</button><button data-page="personnel">👥 กำลังพล</button><div class="nav-group-label" style="padding:10px 12px 4px;font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--muted)">🚗 รถราชการ</div><button data-page="vehicles" style="padding-left:24px">1. ทะเบียนรถ</button><button data-page="calendar" style="padding-left:24px">2. แผนการใช้รถ</button><button data-page="vehicleUsage" style="padding-left:24px">3. บันทึกการใช้รถ (แบบ ๔)</button><button data-page="vehicleUsage" data-scroll-target="vehicleUsageHistory" style="padding-left:24px">4. รายงานการใช้รถ</button><button data-page="projects">🎯 โครงการ</button><button data-page="budget">💰 งบประมาณ</button><button data-page="fuel">⛽ น้ำมัน</button><button data-page="allowance">🍱 ค่าเลี้ยงดู</button><button data-page="reports">📊 รายงานกำลังพล</button><button data-page="settings">⚙️ ตั้งค่า</button>
 </nav>
 </aside>
 
@@ -2366,6 +2366,11 @@ document.querySelectorAll('.nav button').forEach(button=>{
       return;
     }
     activatePage(pageId,button);
+    const scrollTarget=button.dataset.scrollTarget;
+    if(scrollTarget){
+      const target=$(scrollTarget);
+      if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+    }
   });
 });
 
